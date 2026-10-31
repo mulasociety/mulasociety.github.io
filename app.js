@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=c1f0166cc2'
+import { criarGrafico, numerosAviso } from './grafico.js?v=f58847c8ba'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1213,7 +1213,7 @@ ESTREITO.addEventListener('change', () => { if (ultimoPlacar?.length) placarTP(u
 function desdeTit(L) {
   const b = L.find(e => e.id === 'bot')?.desde, o = L.find(e => !/^bot/.test(e.id))?.desde
   return b && o && b !== o ? 'tudo somado · o BOT desde ' + diaCurtoLx(b) + ' (antes de 21/10, refeito pela regra) · as outras desde ' + diaCurtoLx(o) + ', cada entrada até 24 h'
-    : 'tudo somado desde ' + diaCurtoLx(b || o) + ' · o BOT como no Telegram; nas outras, cada entrada até 24 h'
+    : 'tudo somado desde ' + diaCurtoLx(b || o) + ' · o BOT como no Telegram (antes de 21/10, refeito pela regra); nas outras, cada entrada até 24 h'
 }
 function placarTP(L) {
   const el = $('estrTP')
