@@ -1007,6 +1007,11 @@ button, a, summary, select, [role="button"] { -webkit-tap-highlight-color:transp
   .estrTP .placarDuas .placar td:first-child { grid-column:1 / -1; padding-bottom:4px; font-size:14px; overflow-wrap:normal }
   .estrTP .placar .partes { font-size:12px; white-space:normal }
   .estrTP .decorrer { font-size:12px }
+  /* 31/10: ao descer a lista, os nomes das colunas ficam presos em cima (é uma tabela só, app.js). O título sobe com ela: a
+     barra de baixo já diz «Estratégias», e preso por cima dos nomes pedia uma altura fixa que muda com a letra */
+  .estrTP .tit { position:static; padding-bottom:0 }
+  .estrTP .placar thead { position:sticky; top:0; z-index:1; background:var(--painel) }
+  .estrTP .placar thead tr { padding-top:10px }   /* os 8 px de baixo do título passam para aqui: parado fica igual, preso não encosta ao topo */
 }
 /* no quadrado do dia só cabe o número: o € sai (está nas contas do mês) e o «+1 559» já não passa para o dia ao lado */
 @media (max-width: 700px) { .fat-eur { display:none } }

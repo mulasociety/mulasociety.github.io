@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=9185dacc87'
+import { criarGrafico, numerosAviso } from './grafico.js?v=260ad01fdc'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1138,6 +1138,10 @@ function desenharProb() {
 // 24/10 («faz aqui embaixo disto um card que tenha lá estratégia X, profit deu ou profit não, mas quantas vezes acertou; é
 // para depois virmos qual é mais lucrativa»): por baixo do gráfico, os mesmos avisos fechados de quatro maneiras, em pips
 // (1 pip = 1 $ no ouro, como no briefing). Vem com o /api/resultado; o amigo não o vê.
+// 31/10 (telemóvel): no ecrã estreito a lista vai numa tabela só, para os nomes das colunas ficarem presos em cima ao
+// descer (com duas, uma por baixo da outra, o cabeçalho ia-se embora com a primeira a meio da lista)
+const ESTREITO = matchMedia('(max-width: 760px)')
+ESTREITO.addEventListener('change', () => { if (ultimoPlacar?.length) placarTP(ultimoPlacar) })
 function placarTP(L) {
   const el = $('estrTP')
   if (!el || !L?.length) return
@@ -1163,11 +1167,11 @@ function placarTP(L) {
   // as duas colunas dividem-se com o BOT fechado; aberto, os tipos vão logo por baixo dele e só essa coluna cresce
   const comTipos = l => l.flatMap(e => e.id === 'bot' ? [e, ...F] : [e])
   const tabela = l => '<table class="placar"><thead><tr><th>Estratégia</th><th>Entradas</th><th>TP1</th><th>TP2</th><th>TP3</th><th>Stop</th><th>Pips</th></tr></thead><tbody>' + comTipos(l).map(linha).join('') + '</tbody></table>'
-  const V = L.filter(e => !filho(e)), meio = Math.ceil(V.length / 2)
+  const V = L.filter(e => !filho(e)), meio = ESTREITO.matches ? V.length : Math.ceil(V.length / 2)
   // 27/10: o BOT conta como saiu no Telegram (a regra, sem limite de horas); as outras medem-se nas velas, até 24 h cada.
   // 29/10 («estas estratégias são por dia ou desde sempre?»): diz que é tudo somado e que as 24 h são de cada entrada
   el.innerHTML = '<div class="tit"><span>Estratégias</span><span>tudo somado desde 19/10 · o BOT como no Telegram; nas outras, cada entrada até 24 h<span class="legDecorrer">' + RELOGIO + 'a decorrer</span></span></div>'
-    + '<div class="placarDuas">' + tabela(V.slice(0, meio)) + tabela(V.slice(meio)) + '</div>'
+    + '<div class="placarDuas">' + tabela(V.slice(0, meio)) + (meio < V.length ? tabela(V.slice(meio)) : '') + '</div>'
   el.hidden = false
 }
 // 25/10 («tenta meter isto de outra forma»): as entradas a decorrer com um relógio pequeno e o número, em vez de «a decorrer +2»
