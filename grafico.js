@@ -7,9 +7,12 @@ const LX = 'Europe/Lisbon', NB = ' '
 const TFS = { '1s': 1, '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400 }
 const OURO_DESDE = Date.UTC(2026, 8, 30, 23) / 1000   // 1/10 às 00:00 de Lisboa: daqui para a frente, o ouro tem o gráfico todo
 const fmt = (v, c) => { const s = Math.abs(v).toFixed(c).split('.'); return (v < 0 ? '-' : '') + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, NB) + (s[1] ? ',' + s[1] : '') }
-const hora = t => new Date(t * 1000).toLocaleTimeString('pt-PT', { timeZone: LX, hour: '2-digit', minute: '2-digit' })
-const horaS = t => new Date(t * 1000).toLocaleTimeString('pt-PT', { timeZone: LX, hour: '2-digit', minute: '2-digit', second: '2-digit' })
-const data = t => new Date(t * 1000).toLocaleDateString('pt-PT', { timeZone: LX, day: '2-digit', month: '2-digit' })
+// 31/10 (telemóvel, «lento, travamento»): os formatadores das horas e dos dias fazem-se uma vez. Com opções, o toLocale*String
+// faz um novo a cada chamada, e cada vez que o gráfico se refazia eram milhares (as dicas de todos os avisos, o quadro): no
+// Chrome com o processador 4x mais lento, um terço do tempo. O texto é o mesmo
+const fmtLx = o => { const f = new Intl.DateTimeFormat('pt-PT', { timeZone: LX, ...o }); return t => { const d = new Date(t * 1000); return Number.isNaN(d.getTime()) ? 'Invalid Date' : f.format(d) } }
+const hora = fmtLx({ hour: '2-digit', minute: '2-digit' }), horaS = fmtLx({ hour: '2-digit', minute: '2-digit', second: '2-digit' })
+const data = fmtLx({ day: '2-digit', month: '2-digit' })
 const NOMES = { teto: 'venda no teto', sv3: 'SV3', pico: 'venda depois do pico', incrivel: 'INCRÍVEL' }
 // 24/10 («ainda está feio»): as cores do gráfico vêm de uma paleta. No escuro, as nossas (rosa velho, verde salva, areia);
 // no claro, as clássicas do TradingView (vermelho e verde-água, laranja nas médias), todas da mesma família das velas,
@@ -424,7 +427,7 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
     // desde o início fica numa linha por baixo (os stops de lá foram a sério, não se escondem).
     // 23/10, 00:50 («ainda sem avisos hoje: aqui não faz sentido», «aqui 1» no stop de ontem): para ele o dia só acaba quando
     // se deita. O dia do quadro vai das 06:00 às 06:00 de Lisboa, e a data aparece escrita.
-    const lx = t => new Date((t - 6 * 3600) * 1000).toLocaleDateString('pt-PT', { timeZone: LX, day: '2-digit', month: '2-digit' })
+    const lx = t => data(t - 6 * 3600)
     const tudo = vistaAlvos === 'tudo', dia = lx(Date.now() / 1000 - (vistaAlvos === 'ontem' ? 86400 : 0)), H = (a.lista || []).filter(p => lx(p.time) === dia)
     // 23/10 («mete as infos reais»): no ouro são só os avisos que foram para o Telegram, cada um por si (servidor/arranque.mjs)
     const total = c.fechados + c.abertos, nome = x => x === 1 ? (ouro ? ' aviso' : ' sinal') : (ouro ? ' avisos' : ' sinais')
@@ -572,8 +575,7 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
     }
     // 24/10 («este TP3, tu metes esta box: isso quer dizer que a trade só vai até essa box?»): o nome do aviso diz o que ele
     // fez depois de a caixa fechar e a que horas (de Lisboa, com o dia quando já é outro)
-    const diaLx = t => new Date(t * 1000).toLocaleDateString('pt-PT', { timeZone: LX, day: '2-digit', month: '2-digit' })
-    const quando = (t, de) => (diaLx(t) === diaLx(de) ? ' às ' : ' a ' + diaLx(t) + ' às ') + new Date(t * 1000).toLocaleTimeString('pt-PT', { timeZone: LX, hour: '2-digit', minute: '2-digit' })
+    const quando = (t, de) => (data(t) === data(de) ? ' às ' : ' a ' + data(t) + ' às ') + hora(t)
     grupos.forEach((g, i) => {
       const p = g[0], prox = i + 1 < grupos.length ? grupos[i + 1][0].time : solto && g.includes(solto) ? solto.time : null
       const corte = prox != null && (!p.fim || p.fim.t >= prox) ? prox - TFS[d.tf] : null, ate = corte ?? (p.fim ? p.fim.t : null)
