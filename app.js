@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=f58847c8ba'
+import { criarGrafico, numerosAviso } from './grafico.js?v=ae71ef0b82'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1498,10 +1498,13 @@ function mAtualizar() {
     const ed = ['zimba', 'edney', ...ZIMBA_CINCO], bt = ['bot', ...JUNTAS.bot], por = l => l.sort((a, b) => b.ordem - a.ordem), B = ops.filter(o => bt.includes(o.value))
     // 31/10 («coloca esse filtro no gráfico para analisar»): as underground (servidor/underground.mjs) num grupo delas
     const ug = ['oitenta', 'ib', 'smash', 'oops', 'camarilla3', 'camarilla4', 'judas'], U = ops.filter(o => ug.includes(o.value))
+    // 31/10 («yyya»): a das superstições do ouro (servidor/supersticoes.mjs) num grupo dela
+    const sg = ['sexta'], SU = ops.filter(o => sg.includes(o.value))
     return [{ nome: 'Nenhuma', v: '', on: !l.length, radio: true }, ...(B.length ? [{ grupo: '<span class="ouro">BOT</span>' }, ...por(B.map(item))] : []),
       { grupo: '<span class="ouro laranja">ZIMBA FX</span>' }, ...por(ops.filter(o => ed.includes(o.value)).map(item)),
       ...(U.length ? [{ grupo: 'Underground' }, ...por(U.map(item))] : []),
-      { grupo: 'Outras' }, ...por(ops.filter(o => !ed.includes(o.value) && !bt.includes(o.value) && !ug.includes(o.value)).map(item))]
+      ...(SU.length ? [{ grupo: 'Superstições' }, ...por(SU.map(item))] : []),
+      { grupo: 'Outras' }, ...por(ops.filter(o => !ed.includes(o.value) && !bt.includes(o.value) && !ug.includes(o.value) && !sg.includes(o.value)).map(item))]
   }
   // cada linha liga ou desliga a sua (a folha fica aberta para escolher mais); «Nenhuma» desliga todas
   const escolher = x => {
