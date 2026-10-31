@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=62f229e4ce'
+import { criarGrafico, numerosAviso } from './grafico.js?v=0be6fff683'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -9,6 +9,8 @@ const fmt = (v, c = 1) => { if (v == null || Number.isNaN(+v)) return '-'; const
 const casasTexto = s => s === 'XAUUSD' ? 1 : /JPY/.test(s) ? 3 : 5
 const pipDe = s => s === 'XAUUSD' ? 0.1 : /JPY/.test(s) ? 0.01 : 0.0001
 let ultimoPlacar = []
+// 31/10: o dia desde quando conta cada linha do placar («1/10»); sem ele (um servidor de antes), 19/10 como estava
+const diaCurtoLx = s => s ? new Date(s * 1000).toLocaleDateString('pt-PT', { timeZone: 'Europe/Lisbon', day: 'numeric', month: 'numeric' }).replace(/^0/, '') : '19/10'
 const TFN = { '1s': '1 s', '15m': '15 min', '1h': '1 h', '4h': '4 h', '1d': 'dia' }, FIBO = { 0.382: '38,2', 0.5: '50', 0.618: '61,8' }
 let ultimaR = null   // a última análise, para a contagem do mercado fechado no Agora
 // 31/10 (desempenho no telemóvel): os formatadores da hora e do dia fazem-se uma vez. No Safari o toLocaleTimeString com
@@ -40,6 +42,7 @@ est.camadas = { ...LIMPO, ...(est.camadas || {}) }
 const guardar = () => localStorage.setItem('jarvis', JSON.stringify(est))
 const grafico = criarGrafico($('grafico'), { pedirHistoria: (s, tf, ate, n) => api('historico?s=' + s + '&tf=' + tf + '&ate=' + ate + (n ? '&n=' + n : '')) })
 let radarLista = [], ultimoGrafico = null, ultimoPlano = null, fechado = false
+let ultimasTeorias = null   // 31/10: as teorias do ouro (/api/teorias), para o filtro do gráfico
 // o lote e o câmbio do /api/resultado (os € dos avisos a decorrer) e o último preço que se lhes aplicou
 let valorLote = null, pxAbertos = null
 
@@ -526,6 +529,13 @@ const BOT_ESTR = [{ id: 'bot', nome: 'BOT: todos os avisos' }, { id: 'bot-pico',
   { id: 'bot-incrivel', nome: 'BOT: INCRÍVEL' }, { id: 'bot-sv3', nome: 'BOT: linhas do SV3' }]
 const estrEscolhidas = () => [...new Set((est.estrVer || []).flatMap(v => JUNTAS[v] || [v]))]
 est.estrVer = estrEscolhidas()
+// 31/10 («busca teorias e impactos do xauusd [...] e cria um filtro no gráfico com a possibilidade de desativar ou ligar»): as
+// teorias do ouro ligadas no gráfico (servidor/teorias.mjs). Ficam guardadas como as camadas
+est.teoVer = Array.isArray(est.teoVer) ? est.teoVer : []
+function nomeTeo() {
+  const T = ultimasTeorias?.teorias || [], l = est.teoVer.filter(id => T.some(x => x.id === id))
+  return !l.length ? '' : l.length === T.length ? 'todas' : l.length === 1 ? T.find(x => x.id === l[0]).nome : l.length + ' ligadas'
+}
 // quem tinha a «todas juntas» escolhida antes de 29/10 tinha guardadas as cinco: passa a ter a estratégia nova (uma vez só)
 if (!est.juntas5) { if (est.estrVer.length === 5 && ZIMBA_CINCO.every(id => est.estrVer.includes(id))) est.estrVer = ['edney']; est.juntas5 = 1; guardar() }
 function nomeEstr() {
@@ -538,7 +548,7 @@ function nomeEstr() {
 function escolhaEstr() {
   const el = $('estrSel'), ids = ultimoGrafico?.estrategias?.ids || []
   if (!ids.length) return
-  const n = id => /^bot/.test(id) ? (ultimoGrafico.alvos?.lista || []).filter(p => (JUNTAS[id] || [id]).includes('bot-' + p.tipo)).length
+  const n = id => /^bot/.test(id) ? [...(ultimoGrafico.alvos?.refeitos || []), ...(ultimoGrafico.alvos?.lista || [])].filter(p => (JUNTAS[id] || [id]).includes('bot-' + p.tipo)).length
     : (ultimoGrafico.estrategias.lista || []).filter(x => (JUNTAS[id] || [id]).includes(x.id)).length
   const html = '<option value="">Estratégia: nenhuma</option>' + [...(ultimoGrafico.alvos ? BOT_ESTR : []), ...ids].map(x => '<option value="' + x.id + '">' + esc(x.nome) + ' (' + n(x.id) + ')</option>').join('')
   if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html }
@@ -570,6 +580,7 @@ const VAZIA = {
   posicoes: d => !d.posicoes?.length && 'não tens nenhuma posição aberta'
 }
 let notaAte = 0
+const notaTexto = txt => { clearTimeout(notaAte); notaCam.textContent = txt; notaCam.classList.add('on'); notaAte = setTimeout(() => notaCam.classList.remove('on'), 7000) }
 function notaCamada(c) {
   const porque = est.camadas[c] && ultimoGrafico && VAZIA[c]?.(ultimoGrafico)
   clearTimeout(notaAte)
@@ -984,6 +995,14 @@ const semanaLx = new Intl.DateTimeFormat('en-GB', { timeZone: LX, weekday: 'shor
 const naSemana = ms => { const p = Object.fromEntries(semanaLx.formatToParts(ms).map(x => [x.type, x.value])); return { d: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday), b: Math.floor(+p.hour / 2) } }
 const horasProb = b => String(2 * b).padStart(2, '0') + 'h às ' + String(2 * b + 2).padStart(2, '0') + 'h'
 const maiuscula = s => s[0].toUpperCase() + s.slice(1)
+// 31/10 («e superstições que os traders dizem que acontece no mercado de xauusd»): as superstições do ouro, contadas desde 2004
+// nas velas de 1 h da Dukascopy (servico/supersticoes.py faz o supersticoes.json). Lê-se uma vez, na primeira vez que a página
+// se desenha (null: ainda não se pediu; 0: a caminho ou falhou)
+let supers = null
+const lerSupers = () => { supers = 0; fetch('supersticoes.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : 0).then(j => { supers = j?.lista ? j : 0; if (supers && !$('pagProb').hidden) desenharProb() }).catch(() => {}) }
+// a idade da lua em dias, a partir de uma lua nova conhecida (6/1/2000 às 18:14 UTC); cheia ou nova a 1 dia dela, como nas superstições
+const LUA_NOVA = Date.UTC(2000, 0, 6, 18, 14) / 1000, LUNACAO = 29.530588853 * 86400
+const luaForte = t => { const i = ((t - LUA_NOVA) % LUNACAO + LUNACAO) % LUNACAO / 86400, meio = LUNACAO / 172800; return Math.abs(i - meio) <= 1 || i <= 1 || i >= 2 * meio - 1 }
 function desenharProb() {
   const r = fatR
   if (!r) return
@@ -1071,13 +1090,61 @@ function desenharProb() {
   const porEstr = '<section class="fat-cartao" aria-labelledby="probEstrTit"><div class="fat-dia-cab"><div><div class="lc-rot">Por estratégia</div><h2 class="fat-dia-nome" id="probEstrTit">A melhor e a pior hora de cada uma</h2></div></div>'
     + '<table class="fat-tipos prob-tipos"><thead><tr><th scope="col">Estratégia</th><th scope="col">Avisos</th><th scope="col">Acerto</th><th scope="col">Melhor hora</th><th scope="col">Pior hora</th></tr></thead><tbody>' + ESC.map(linha).join('') + '</tbody></table></section>'
 
+  // 31/10 («ver probabilidades, acertou X vezes àquela hora etc [...] coisas mesmo tipo que pouca gente liga»): nos avisos desta
+  // escolha, cada condição e quantos desses chegaram ao TP2. A 1.ª vela (v1), o caminho até ao stop (pior) e a entrada (E) vêm
+  // do servidor, das velas de 15 min (fechosDaBanca); enquanto não vierem (a nuvem antes de publicar), essas linhas não aparecem
+  const ganhou = f => R_FAT[f.fim] > 0, porT = [...e.L].sort((p, q) => p.t - q.t), porFim = [...e.L].sort((p, q) => p.tf - q.tf)
+  const numDia = new Map(), noDia = new Map(), antes = new Map()
+  for (const f of porT) { const d = diaLxDe(f.t * 1000); noDia.set(d, (noDia.get(d) || 0) + 1); numDia.set(f, noDia.get(d)) }
+  // o último desta escolha que já tinha acabado quando o aviso saiu
+  for (const f of porT) { let u = null; for (const g of porFim) { if (g.tf < f.t) u = g; else break } antes.set(f, u) }
+  const comE = e.L.some(f => f.E != null), comV1 = e.L.some(f => f.v1 != null), redondo = f => Math.abs(f.E - Math.round(f.E / 10) * 10) <= 1
+  const diaMes = f => +diaLxDe(f.t * 1000).slice(8)
+  const GRUPOS = [
+    ['Enquanto anda', [['Tocou no TP1', f => f.hits?.[0] != null],
+      comV1 && ['A 1.ª vela de 15 min fechou a favor', f => f.v1 === 1], comV1 && ['A 1.ª vela de 15 min fechou contra', f => f.v1 === -1],
+      ['Ainda a decorrer aos 30 min', f => f.tf - f.t > 1800], ['Ainda a decorrer à 1 h', f => f.tf - f.t > 3600], ['Ainda a decorrer às 2 h', f => f.tf - f.t > 7200],
+      // os stops chegaram lá todos; os TP2, se antes da vela do fim andaram 3/4 do caminho até ao stop
+      comE && ['Esteve a 1/4 do stop', f => f.E != null && (!ganhou(f) || f.pior >= 0.75)]]],
+    ['Antes de sair', [['Depois de um stop', f => antes.get(f) && !ganhou(antes.get(f))], ['Depois de um TP2', f => antes.get(f) && ganhou(antes.get(f))],
+      ['O 1.º do dia', f => numDia.get(f) === 1], ['O 2.º do dia', f => numDia.get(f) === 2], ['Do 3.º para a frente', f => numDia.get(f) >= 3],
+      ['Compra', f => f.lado !== 'venda'], ['Venda', f => f.lado === 'venda']]],
+    ['Superstições', [comE && ['Entrada a 1 $ de um número redondo', f => f.E != null && redondo(f)], comE && ['Entrada longe dos números redondos', f => f.E != null && !redondo(f)],
+      ['Em dia par', f => diaMes(f) % 2 === 0], ['Em dia ímpar', f => diaMes(f) % 2 === 1],
+      ['Com lua cheia ou nova', f => luaForte(f.t)], ['Nos outros dias', f => !luaForte(f.t)]]]
+  ]
+  const linhaP = ([rot, f]) => { const x = contas(e.L.filter(f)); return x.n ? '<tr><td>' + rot + '</td><td class="num">' + deN(x) + '</td><td class="num' + cor(x) + '">' + pct(x) + '</td></tr>' : '' }
+  const corpoP = GRUPOS.map(([g, L]) => { const h = L.filter(Boolean).map(linhaP).join(''); return h ? '<tr class="prob-g"><th colspan="3" scope="colgroup">' + g + '</th></tr>' + h : '' }).join('')
+  // quanto tempo demoram: a metade dos TP2 e a metade dos stops, e os stops logo nos primeiros 15 min
+  const mediana = v => { const s = [...v].sort((p, q) => p - q), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2 }
+  const mins = L => { const r = Math.round(mediana(L.map(f => Math.max(0, f.tf - f.t) / 60))); return r >= 60 ? Math.floor(r / 60) + NB + 'h' + (r % 60 ? ' ' + r % 60 + NB + 'min' : '') : r + NB + 'min' }
+  const G = e.L.filter(ganhou), S = e.L.filter(f => !ganhou(f))
+  const tempo = [G.length && (G.length > 1 ? 'metade dos TP2 chegou em ' + mins(G) + ' ou menos' : 'o TP2 chegou em ' + mins(G)),
+    S.length && (S.length > 1 ? 'metade dos stops bateu em ' + mins(S) + ' ou menos' : 'o stop bateu em ' + mins(S))].filter(Boolean)
+  const txtP = e.L.length ? maiuscula(tempo.join('; ')) + '.' + (S.length ? ' ' + S.filter(f => f.tf - f.t <= 900).length + ' de ' + S.length + (S.length === 1 ? ' stop' : ' stops') + ' nos primeiros 15 min.' : '')
+    : 'Nenhum aviso desta estratégia fechou ainda.'
+  const pouca = '<section class="fat-cartao" aria-labelledby="probPoucaTit"><div class="fat-dia-cab"><div><div class="lc-rot">' + esc(e.nome) + '</div><h2 class="fat-dia-nome" id="probPoucaTit">O que pouca gente conta</h2></div></div>'
+    + '<p class="fat-dia-txt">' + txtP + '</p>'
+    + (corpoP ? '<table class="fat-tipos prob-pouca"><thead><tr><th scope="col">Quando</th><th scope="col">No TP2</th><th scope="col">Acerto</th></tr></thead><tbody>' + corpoP + '</tbody></table>'
+      + '<p class="fat-nota">Cada linha conta só os avisos dessa condição: dos que tocaram no TP1, quantos foram ao TP2. Redondo é acabado em 0, como 3 890. A 1.ª vela e o caminho até ao stop medem-se nas velas de 15 min. O dia e a lua são os de Lisboa.</p>' : '')
+    + '</section>'
+
+  // ao lado, as superstições do ouro: primeiro as verdades, depois as meias e no fim os mitos
+  if (supers === null) lerSupers()
+  const VER = { verdade: ['sobe', '✓' + NB + 'Verdade'], meio: ['areia', '≈' + NB + 'Meia-verdade'], mito: ['desce', '✗' + NB + 'Mito'] }
+  const sups = supers ? '<section class="fat-cartao" aria-labelledby="probSupTit"><div class="fat-dia-cab"><div><div class="lc-rot">Desde ' + supers.desde.slice(0, 4) + ' · ' + fmt(supers.dias, 0) + ' dias de ouro</div>'
+    + '<h2 class="fat-dia-nome" id="probSupTit">Superstições do ouro</h2></div></div>'
+    + '<p class="fat-dia-txt">O que os traders dizem do ouro, contado hora a hora desde ' + supers.desde.slice(0, 4) + '. Só é verdade se aconteceu nas duas metades, até 2014 e depois.</p>'
+    + '<ul class="prob-sups">' + ['verdade', 'meio', 'mito'].flatMap(v => supers.lista.filter(s => s.veredicto === v)).map(s => '<li class="prob-sup"><div class="prob-sup-cab"><b>' + esc(s.diz) + '</b>'
+      + '<span class="prob-ver ' + VER[s.veredicto][0] + '">' + VER[s.veredicto][1] + '</span></div><p>' + esc(s.texto) + '</p></li>').join('') + '</ul></section>' : ''
+
   // a escolha da estratégia, no lugar do mês da faturação (só se refaz quando mudam as estratégias, para não fechar a lista aberta)
   const s = $('probEstr'), assinatura = ESC.map(o => o.id + o.L.length).join()
   if (s.dataset.k !== assinatura) { s.innerHTML = ESC.map(o => '<option value="' + o.id + '">' + (o.parte ? NB + NB + NB : '') + esc(o.nome) + ' (' + o.L.length + ')</option>').join(''); s.dataset.k = assinatura }
   s.value = e.id
   const rolo = $('probCorpo').querySelector('.fat-desliza'), y = rolo?.dataset.de === lista ? rolo.scrollTop : 0
   const foco = document.activeElement?.closest?.('#pagProb [data-p], #pagProb [data-e]'), qual = foco && (foco.dataset.p != null ? '[data-p="' + foco.dataset.p + '"]' : '[data-e="' + foco.dataset.e + '"]')
-  $('probCorpo').innerHTML = resumo + cal + nota + '<div class="fat-baixo">' + doSel + porEstr + '</div>'
+  $('probCorpo').innerHTML = resumo + cal + nota + '<div class="fat-baixo">' + doSel + porEstr + '</div><div class="fat-baixo">' + pouca + sups + '</div>'
   const novo = $('probCorpo').querySelector('.fat-desliza')
   roProb.disconnect()
   if (novo) { novo.scrollTop = y; pontas(novo); roProb.observe(novo) }
@@ -1142,6 +1209,12 @@ function desenharProb() {
 // descer (com duas, uma por baixo da outra, o cabeçalho ia-se embora com a primeira a meio da lista)
 const ESTREITO = matchMedia('(max-width: 760px)')
 ESTREITO.addEventListener('change', () => { if (ultimoPlacar?.length) placarTP(ultimoPlacar) })
+// 31/10 («a partir de dia 1», uma de cada vez): o título diz desde quando conta o BOT e desde quando contam as outras
+function desdeTit(L) {
+  const b = L.find(e => e.id === 'bot')?.desde, o = L.find(e => !/^bot/.test(e.id))?.desde
+  return b && o && b !== o ? 'tudo somado · o BOT desde ' + diaCurtoLx(b) + ' (antes de 21/10, refeito pela regra) · as outras desde ' + diaCurtoLx(o) + ', cada entrada até 24 h'
+    : 'tudo somado desde ' + diaCurtoLx(b || o) + ' · o BOT como no Telegram; nas outras, cada entrada até 24 h'
+}
 function placarTP(L) {
   const el = $('estrTP')
   if (!el || !L?.length) return
@@ -1170,7 +1243,7 @@ function placarTP(L) {
   const V = L.filter(e => !filho(e)), meio = ESTREITO.matches ? V.length : Math.ceil(V.length / 2)
   // 27/10: o BOT conta como saiu no Telegram (a regra, sem limite de horas); as outras medem-se nas velas, até 24 h cada.
   // 29/10 («estas estratégias são por dia ou desde sempre?»): diz que é tudo somado e que as 24 h são de cada entrada
-  el.innerHTML = '<div class="tit"><span>Estratégias</span><span>tudo somado desde 19/10 · o BOT como no Telegram; nas outras, cada entrada até 24 h<span class="legDecorrer">' + RELOGIO + 'a decorrer</span></span></div>'
+  el.innerHTML = '<div class="tit"><span>Estratégias</span><span>' + desdeTit(L) + '<span class="legDecorrer">' + RELOGIO + 'a decorrer</span></span></div>'
     + '<div class="placarDuas">' + tabela(V.slice(0, meio)) + (meio < V.length ? tabela(V.slice(meio)) : '') + '</div>'
   el.hidden = false
 }
@@ -1333,6 +1406,9 @@ function mAtualizar() {
   $('camBtnV').textContent = [...$('camadas').querySelectorAll('[data-c]')].filter(x => est.camadas[x.dataset.c]).length + ' ligadas'
   $('estrBtnV').textContent = ne || 'nenhuma'; $('estrBtn').classList.toggle('on', !!ne)
   b.querySelector('.estr .sub').textContent = ne || 'Estratégia'; b.querySelector('.estr').classList.toggle('on', !!ne)
+  const nt = nomeTeo(), nl = est.teoVer.length
+  $('teoBtnV').textContent = nt || 'nenhuma'; $('teoBtn').classList.toggle('on', !!nt)
+  b.querySelector('.teo .sub').textContent = nt ? 'Teorias ' + (nt === 'todas' ? 'todas' : nl) : 'Teorias'; b.querySelector('.teo').classList.toggle('on', !!nt)
   $('mLeg').innerHTML = '<b>' + esc($('gNome').textContent) + '</b> · ' + esc(TFN[est.tf] || est.tf) + ' &nbsp;<b class="num">' + esc($('gPx').textContent) + '</b> <span class="num ' + ($('gVar').className.includes('sobe') ? 'sobe' : 'desce') + '">' + esc($('gVar').textContent.replace(' em 24 h', '')) + '</span>'
     + ($('gTimer').textContent ? '<br><span class="estado">' + esc($('gTimer').textContent) + '</span>' : '')
 }
@@ -1373,6 +1449,7 @@ function mAtualizar() {
   barra.innerHTML = '<button type="button" class="tf" aria-label="Tempo das velas">' + SVG('<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>') + '<span class="sub"></span></button><span class="div"></span>'
     + '<button type="button" class="cam" aria-label="Camadas">' + SVG('<path d="M12 4 3 9l9 5 9-5-9-5z"/><path d="m3 14 9 5 9-5"/>') + 'Camadas</button><span class="div"></span>'
     + '<button type="button" class="estr" aria-label="Estratégias no gráfico">' + SVG('<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>') + '<span class="sub"></span></button><span class="div"></span>'
+    + '<button type="button" class="teo" aria-label="Teorias do ouro" hidden>' + SVG('<path d="M12 6.5C10 5 7 4.5 4 5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V5c-3-.5-6 0-8 1.5z"/><path d="M12 6.5v13"/>') + '<span class="sub">Teorias</span></button><span class="div teoDiv" hidden></span>'
     + '<button type="button" class="cor" aria-label="Cor do gráfico">' + SVG('<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>') + 'Cor</button>'
   $('grafico').closest('.card').prepend(barra)
   const leg = document.createElement('div'); leg.className = 'mLeg'; leg.id = 'mLeg'; $('grafico').append(leg)
@@ -1388,7 +1465,7 @@ function mAtualizar() {
   const desenhar = () => {
     folha.querySelector('.mLista').innerHTML = itens().map((x, k) => x.grupo != null ? '<div class="grupo">' + x.grupo + '</div>'
       : '<button type="button" data-k="' + k + '" class="' + (x.on ? 'on' : '') + '" aria-pressed="' + !!x.on + '">' + (x.amostra ? '<span class="amostra" style="background:' + x.amostra.bg + '"><i style="background:' + x.amostra.sobe + '"></i><i style="background:' + x.amostra.desce + '"></i></span>' : '') + '<span class="esq"><span>' + (x.nomeHtml || esc(x.nome)) + (x.n != null ? ' <span class="n">' + x.n + '</span>' : '') + '</span>' + (x.sub ? '<small>' + esc(x.sub) + '</small>' : '') + '</span>'
-      + '<span class="dir">' + (x.p != null ? '<span class="p' + (x.p >= 0.5 ? ' sobe' : x.p <= -0.5 ? ' desce' : '') + '">' + (x.p < 0 ? '-' : '+') + fmt(Math.abs(x.p), 1) + ' pips</span>' : '') + '<span class="' + (multi && !x.radio ? 'int' : 'marca-on') + '"></span></span></button>').join('')
+      + '<span class="dir">' + (x.p != null ? '<span class="p' + (x.p >= 0.5 ? ' sobe' : x.p <= -0.5 ? ' desce' : '') + '">' + (x.p < 0 ? '-' : '+') + fmt(Math.abs(x.p), 1) + ' pips</span>' : x.direita ? '<span class="p">' + esc(x.direita) + '</span>' : '') + '<span class="' + (multi && !x.radio ? 'int' : 'marca-on') + '"></span></span></button>').join('')
   }
   const abrir = abrirFolha = (tit, f, fn, m, ancora) => {
     if (ancora) { const r = ancora.getBoundingClientRect(); folha.style.setProperty('--x', Math.min(r.left, innerWidth - 410) + 'px'); folha.style.setProperty('--y', r.bottom + 6 + 'px') }
@@ -1408,13 +1485,13 @@ function mAtualizar() {
   const listaCam = () => CAM.flatMap(([g, d]) => [{ grupo: g }, ...Object.entries(d).map(([c, sub]) => { const b = $('camadas').querySelector('[data-c="' + c + '"]'); return b && { nome: b.textContent, sub, on: !!est.camadas[c], b } }).filter(Boolean)])
   barra.querySelector('.cam').addEventListener('click', () => abrir('Camadas no gráfico', listaCam, x => x.b.click(), true))
   $('camBtn').addEventListener('click', e => abrir('Camadas no gráfico', listaCam, x => x.b.click(), true, e.currentTarget))
-  // a lista das estratégias por grupos, cada uma com o que fez desde 19/10 (o placar), as que mais deram primeiro
+  // a lista das estratégias por grupos, cada uma com o que fez desde o dia da linha dela no placar (19/10, ou 1/10 as que já passaram), as que mais deram primeiro
   const listaEstr = () => {
     const P = Object.fromEntries(ultimoPlacar.map(e => [e.id, e])), ops = [...$('estrSel').options].filter(o => o.value), l = estrEscolhidas()
     const item = o => { const e = P[o.value], m = o.text.match(/^(.*?)\s*\((\d+)\)$/), nome = (m ? m[1] : o.text).replace(/^(ZIMBA FX|BOT): /, '')
       return { nome, nomeHtml: o.value === 'edney' ? '<span class="laranja">ZIMBA FX</span>: todas juntas' : o.value === 'bot' ? '<span class="ouro">BOT</span>: todos os avisos' : null, v: o.value, on: (JUNTAS[o.value] || [o.value]).every(id => l.includes(id)), p: e?.n ? e.pips : null,
-        sub: !e ? '' : e.n ? e.n + (e.n === 1 ? ' entrada' : ' entradas') + ' desde 19/10 · TP1 ' + Math.round(100 * e.tp[0] / e.n) + '%' + (e.abertas ? ' · ' + e.abertas + '\u00a0a\u00a0decorrer' : '')
-          : e.abertas ? e.abertas + ' a decorrer, desde 19/10' : 'sem entradas desde 19/10',
+        sub: !e ? '' : e.n ? e.n + (e.n === 1 ? ' entrada' : ' entradas') + ' desde ' + diaCurtoLx(e.desde) + ' · TP1 ' + Math.round(100 * e.tp[0] / e.n) + '%' + (e.abertas ? ' · ' + e.abertas + '\u00a0a\u00a0decorrer' : '')
+          : e.abertas ? e.abertas + ' a decorrer, desde ' + diaCurtoLx(e.desde) : 'sem entradas desde ' + diaCurtoLx(e.desde),
         ordem: o.value === 'zimba' ? 2e9 : o.value === 'edney' || o.value === 'bot' ? 1e9 : e?.n ? e.pips : -1e9 } }
     // 25/10: o modelo completo dos vídeos dele à frente, depois as cinco juntas e cada uma; o Wyckoff e o Elliott também
     // são da lista dele («mete as 5»)
@@ -1434,6 +1511,24 @@ function mAtualizar() {
   }
   barra.querySelector('.estr').addEventListener('click', () => abrir('Estratégias no gráfico', listaEstr, escolher, true))
   $('estrBtn').addEventListener('click', e => abrir('Estratégias no gráfico', listaEstr, escolher, true, e.currentTarget))
+  // 31/10: as teorias do ouro, cada uma com o que diz e quantas vezes acertou ao fim de um mês desde 2004 (à direita). Várias
+  // ao mesmo tempo; «Todas» e «Nenhuma» em cima. Sem nenhum acontecimento nas velas que se veem, a nota diz onde estão
+  const listaTeo = () => {
+    const T = ultimasTeorias?.teorias || [], l = est.teoVer
+    return [{ nome: 'Nenhuma', v: '', on: !l.length, radio: true }, { nome: 'Todas', v: '*', on: T.length > 0 && T.every(x => l.includes(x.id)), radio: true },
+      { grupo: 'Acertou ao fim de 1 mês, desde 2004' },
+      ...T.map(x => ({ v: x.id, on: l.includes(x.id), nomeHtml: '<i class="teoCor" style="background:rgb(' + x.cor + ')"></i>' + esc(x.nome), n: x.n, sub: x.ideia,
+        direita: x.medidos ? x.certos + ' de ' + x.medidos : '' }))]
+  }
+  const escolherTeo = x => {
+    const ids = (ultimasTeorias?.teorias || []).map(t => t.id)
+    est.teoVer = x.v === '' ? [] : x.v === '*' ? ids : x.on ? est.teoVer.filter(id => id !== x.v) : [...est.teoVer, x.v]
+    guardar()
+    const n = grafico.teorias(ultimasTeorias, est.teoVer)
+    if (est.teoVer.length && !n) notaTexto('Teorias: nenhum acontecimento nestas velas. ' + (est.tf === '1d' ? 'A carregar os anos de antes (desde 2004).' : 'No gráfico do dia estão todos, de 2004 até hoje.'))
+  }
+  barra.querySelector('.teo').addEventListener('click', () => abrir('Teorias do ouro', listaTeo, escolherTeo, true))
+  $('teoBtn').addEventListener('click', e => abrir('Teorias do ouro', listaTeo, escolherTeo, true, e.currentTarget))
   new MutationObserver(mAtualizar).observe($('gPx'), { childList: true, characterData: true, subtree: true })
   new MutationObserver(mAtualizar).observe($('gTimer'), { childList: true, characterData: true, subtree: true })
   mostrar(est.mPainel || 'grafico'); mAtualizar()
@@ -1530,3 +1625,14 @@ const TEMAS = [
   caixa.addEventListener('click', e => { if (e.target.closest('[data-fecha]')) fechar() })
   addEventListener('keydown', e => { if (e.key === 'Escape' && !caixa.hidden) fechar() })
 }
+
+// 31/10: as teorias do ouro (os acontecimentos desde 2004 e o que o ouro fez a seguir) vêm ao abrir e de hora a hora; os botões
+// só aparecem quando chegam (a nuvem só as tem depois de o Mac as mandar pela ponte)
+async function carregarTeorias() {
+  try { ultimasTeorias = await api('teorias') } catch { return }
+  const tem = !!ultimasTeorias?.teorias?.length
+  $('teoBtn').hidden = !tem
+  for (const el of $('mBarra')?.querySelectorAll('.teo, .teoDiv') || []) el.hidden = !tem
+  grafico.teorias(ultimasTeorias, est.teoVer); mAtualizar()
+}
+carregarTeorias(); setInterval(seVisivel(carregarTeorias), 3600e3)

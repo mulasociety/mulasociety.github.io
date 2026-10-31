@@ -1,0 +1,127 @@
+{
+ "desde": "2004-01",
+ "ate": "2026-09",
+ "dias": 5892,
+ "feito": "2026-10-31",
+ "lista": [
+  {
+   "id": "sexta",
+   "diz": "À sexta o ouro cai: os grandes fecham posições antes do fim de semana.",
+   "veredicto": "mito",
+   "texto": "Caiu em 43% das sextas (503 de 1168). Nos outros dias, 48%. É ao contrário: à sexta sobe mais vezes.",
+   "n": 1168
+  },
+  {
+   "id": "segunda",
+   "diz": "À segunda o ouro desfaz o que fez na sexta.",
+   "veredicto": "mito",
+   "texto": "A segunda foi ao contrário da sexta em 50% das semanas (575 de 1158). Dois dias seguidos quaisquer foram ao contrário em 53%.",
+   "n": 1158
+  },
+  {
+   "id": "terca",
+   "diz": "«Terça da viragem»: depois de uma segunda a cair, a terça sobe.",
+   "veredicto": "verdade",
+   "texto": "Depois de uma segunda a cair, a terça subiu em 56% das vezes (327 de 580). Num dia qualquer, sobe em 53% das vezes.",
+   "n": 580
+  },
+  {
+   "id": "meses",
+   "diz": "Janeiro e setembro são os meses bons do ouro; março e junho são maus.",
+   "veredicto": "meio",
+   "texto": "Subiu em janeiro 15 de 23 anos e em setembro 10 de 23; em março 10 de 23 e em junho 9 de 23. Janeiro é mesmo o melhor mês e junho o pior; setembro e março empatam.",
+   "n": 273
+  },
+  {
+   "id": "lua",
+   "diz": "Na lua cheia o ouro cai; na lua nova sobe.",
+   "veredicto": "mito",
+   "texto": "Nos dias de lua cheia subiu em 52% (207 de 397); nos de lua nova, em 51% (204 de 400). Nos outros dias, 53%.",
+   "n": 797
+  },
+  {
+   "id": "sexta13",
+   "diz": "Sexta-feira 13 dá azar: o ouro cai.",
+   "veredicto": "mito",
+   "texto": "Houve 40 sextas 13 desde 2004: caiu em 13 (32%). Nas outras sextas, 43%. Até parece dar sorte.",
+   "n": 40
+  },
+  {
+   "id": "inicio",
+   "diz": "No primeiro dia do mês entra dinheiro novo e o ouro sobe.",
+   "veredicto": "meio",
+   "texto": "Subiu em 55% dos primeiros dias do mês (149 de 273). Nos outros dias, 53%.",
+   "n": 273
+  },
+  {
+   "id": "fim",
+   "diz": "No último dia do mês os fundos arrumam a carteira e o ouro cai.",
+   "veredicto": "mito",
+   "texto": "Caiu em 44% dos últimos dias do mês (120 de 273). Nos outros dias, 47%. É ao contrário: cai menos vezes.",
+   "n": 273
+  },
+  {
+   "id": "nfp",
+   "diz": "Na sexta do emprego dos EUA (a primeira do mês) o ouro mexe o dobro.",
+   "veredicto": "meio",
+   "texto": "Mexe mais, mas não o dobro. Na hora do número (das 13h às 15h de Lisboa) o ouro mexeu 1,5 vezes o que mexe a essa hora nas outras sextas. No dia todo, só 1,1 vezes (267 sextas do emprego).",
+   "n": 267
+  },
+  {
+   "id": "gap",
+   "diz": "O gap de domingo fecha sempre.",
+   "veredicto": "verdade",
+   "texto": "Em 327 domingos com gap (mais de 0,1% do preço), fechou nas primeiras 24 h em 79% e até ao fim da semana em 91%.",
+   "n": 327
+  },
+  {
+   "id": "judas",
+   "diz": "Londres rompe a caixa da Ásia só para apanhar os stops, e depois vai para o outro lado.",
+   "veredicto": "mito",
+   "texto": "Londres rompeu a máxima ou a mínima da Ásia em 88% dos dias. Desses, o dia acabou do outro lado do meio da caixa em 34% (1732 de 5155). Em 66% acabou do lado que Londres rompeu.",
+   "n": 5155
+  },
+  {
+   "id": "extremos",
+   "diz": "A máxima e a mínima do dia fazem-se nas aberturas de Londres ou de Nova Iorque.",
+   "veredicto": "verdade",
+   "texto": "A máxima do dia fez-se nas aberturas em 35% dos dias e a mínima em 35%. Ao acaso seriam 26% (são 6 das 23 horas). A hora em que mais vezes se fez a máxima é a das 13h de Lisboa; a mínima, a das 15h.",
+   "n": 5892
+  },
+  {
+   "id": "fixing",
+   "diz": "Às 15h e às 16h de Londres (os fixings do ouro e das moedas) o ouro dá esticões.",
+   "veredicto": "verdade",
+   "texto": "A vela das 15h de Lisboa mexe 1,7 vezes a hora média; a das 16h, 1,4. A das 13h (a dos dados dos EUA) mexe o mesmo.",
+   "n": 5892
+  },
+  {
+   "id": "nova-iorque",
+   "diz": "Nova Iorque desfaz o que Londres fez de manhã.",
+   "veredicto": "mito",
+   "texto": "A tarde foi ao contrário da manhã em 49% dos dias (2906 de 5890). Ao acaso seriam 50%.",
+   "n": 5890
+  },
+  {
+   "id": "redondos",
+   "diz": "O ouro respeita os números redondos (os …00 e os …50): é lá que vira.",
+   "veredicto": "mito",
+   "texto": "Desde 2019, 4,5% das máximas e das mínimas do dia ficaram a menos de 1 $ de um …00 ou …50. Ao acaso seriam 4%.",
+   "n": 4000
+  },
+  {
+   "id": "halloween",
+   "diz": "Compra no Halloween e vende em maio: o ouro ganha de novembro a abril.",
+   "veredicto": "mito",
+   "texto": "De novembro a abril o ouro ganhou mais do que de maio a outubro em 10 de 21 anos. Em média, +8,9% contra +3,4%.",
+   "n": 21
+  },
+  {
+   "id": "stops",
+   "diz": "Os grandes caçam os stops: o ouro passa a máxima de ontem e volta para baixo.",
+   "veredicto": "meio",
+   "texto": "Quando passou a máxima de ontem, fechou outra vez abaixo dela em 48% das vezes; quando passou a mínima, fechou outra vez acima em 51%.",
+   "n": 5503
+  }
+ ]
+}

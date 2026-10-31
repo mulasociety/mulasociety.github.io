@@ -487,6 +487,8 @@ body { background:var(--textura), linear-gradient(180deg, #121720 0%, #0e121a 10
   .mBarra button.tf .sub { color:var(--texto); font-weight:600 }
   .mBarra button.estr .sub { max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
   .mBarra button.estr.on .sub { color:var(--areia) }
+  .mBarra button.teo .sub { max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+  .mBarra button.teo.on .sub { color:var(--areia) }
   .mBarra .div { flex:none; width:1px; height:22px; background:var(--borda) }
 
   /* a legenda por cima das velas, como a deles */
@@ -556,6 +558,8 @@ body { background:var(--textura), linear-gradient(180deg, #121720 0%, #0e121a 10
 .mLista button .dir { display:flex; align-items:center; gap:12px; flex:none }
 .mLista button .p { font-size:13px; font-variant-numeric:tabular-nums; color:var(--suave) }
 .mLista button .p.sobe { color:var(--salva) } .mLista button .p.desce { color:var(--rosa) }
+/* 31/10: a cor de cada teoria do ouro na lista, a mesma das linhas no gráfico */
+.mLista .teoCor { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; vertical-align:1px }
 /* no computador a lista abre por baixo do botão, como um menu */
 @media (min-width: 1001px) and (min-height: 521px) {
   .mFolha .mFundo { background:transparent }
@@ -933,6 +937,20 @@ button.prob-c { cursor:pointer }
 .prob-e { font:inherit; color:inherit; text-align:left; background:none; border:0; padding:0; cursor:pointer }
 .prob-tipos tr.sel .prob-e { color:var(--areia) }
 @media (hover: hover) { .prob-e:hover { color:var(--texto); text-decoration:underline; text-underline-offset:3px } }
+/* 31/10 («coisas mesmo tipo que pouca gente liga» e «superstições que os traders dizem»): o que pouca gente conta, mais
+   apertado do que a tabela de cima (são mais linhas), com o nome de cada grupo como os rótulos; e as superstições do ouro, cada
+   uma com o veredicto em texto de cor (verde salva, areia, rosa velho), sem caixas */
+.prob-pouca td { padding-top:7px; padding-bottom:7px }
+.prob-pouca td:first-child { white-space:normal; text-wrap:pretty }
+.prob-pouca td:nth-child(2) { color:var(--suave); white-space:nowrap }
+.prob-pouca .prob-g th { padding:16px 0 6px; font-size:11px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; text-align:left; color:var(--suave); border-bottom:1px solid var(--borda) }
+.prob-pouca tbody tr:first-child th { padding-top:6px }
+.prob-sups { list-style:none; margin-top:10px }
+.prob-sup { padding:11px 0; border-top:1px solid #1d2125 }
+.prob-sup-cab { display:flex; align-items:baseline; justify-content:space-between; gap:12px; font-size:13.5px; line-height:1.4 }
+.prob-sup-cab b { font-weight:600; text-wrap:pretty }
+.prob-ver { flex:none; font-size:12px; font-weight:600; white-space:nowrap }
+.prob-sup p { margin-top:4px; font-size:12.5px; line-height:1.45; color:var(--suave); text-wrap:pretty }
 @media (max-width: 700px) {
   .prob-estr select { max-width:170px }
   .prob-cal { grid-template-columns:50px repeat(7, minmax(0, 1fr)); grid-auto-rows:minmax(38px, auto); gap:3px }

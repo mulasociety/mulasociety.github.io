@@ -12,7 +12,10 @@ const fmt = (v, c) => { const s = Math.abs(v).toFixed(c).split('.'); return (v <
 // Chrome com o processador 4x mais lento, um terço do tempo. O texto é o mesmo
 const fmtLx = o => { const f = new Intl.DateTimeFormat('pt-PT', { timeZone: LX, ...o }); return t => { const d = new Date(t * 1000); return Number.isNaN(d.getTime()) ? 'Invalid Date' : f.format(d) } }
 const hora = fmtLx({ hour: '2-digit', minute: '2-digit' }), horaS = fmtLx({ hour: '2-digit', minute: '2-digit', second: '2-digit' })
-const data = fmtLx({ day: '2-digit', month: '2-digit' })
+const data = fmtLx({ day: '2-digit', month: '2-digit' }), dataAno = fmtLx({ day: '2-digit', month: '2-digit', year: 'numeric' })
+const ano = fmtLx({ year: 'numeric' })
+// 31/10: com as velas desde 2004, a data leva o ano quando não é o deste ano
+const dataX = t => ano(t) === ano(Date.now() / 1000) ? data(t) : dataAno(t)
 const NOMES = { teto: 'venda no teto', sv3: 'SV3', pico: 'venda depois do pico', incrivel: 'INCRÍVEL' }
 // 24/10 («ainda está feio»): as cores do gráfico vêm de uma paleta. No escuro, as nossas (rosa velho, verde salva, areia);
 // no claro, as clássicas do TradingView (vermelho e verde-água, laranja nas médias), todas da mesma família das velas,
@@ -233,6 +236,52 @@ class Reserva {
   }
 }
 
+// 31/10 («cria um filtro no gráfico com a possibilidade de desativar ou ligar essas teorias»): os acontecimentos das teorias
+// ligadas, cada um numa linha a direito na vela em que aconteceu, da cor da teoria, com o nome em cima: ✓ se ao fim de um mês o
+// ouro fez o que a teoria dizia, ✗ se fez o contrário, ○ se quase não mexeu. Os nomes descem uma linha quando batem noutro,
+// até quatro; sem lugar fica a linha com um ponto em cima, e a dica do rato continua lá. No telemóvel começam abaixo da legenda
+// (y0), que ocupa as duas primeiras linhas à esquerda
+class Acontecimentos {
+  constructor(itens, x, y0 = 4) { this.itens = itens; this.x = x; this.y0 = y0; this.vistas = [{ zOrder: () => 'top', renderer: () => ({ draw: t => this.desenha(t) }) }] }
+  attached() {}
+  detached() {}
+  updateAllViews() {}
+  paneViews() { return this.vistas }
+  desenha(t) {
+    t.useBitmapCoordinateSpace(sc => {
+      const c = sc.context, r = sc.horizontalPixelRatio, k = sc.verticalPixelRatio, W = sc.mediaSize.width, H = sc.mediaSize.height, ALT = 14, y0 = this.y0
+      const L = this.itens.map(it => ({ ...it, x: this.x(it.time) })).filter(it => it.x != null && it.x >= 0 && it.x <= W)
+      c.save()
+      c.lineWidth = Math.max(1, Math.round(r)); c.setLineDash([3 * r, 3 * r])
+      for (const it of L) { const x = Math.round(it.x * r) + 0.5; c.strokeStyle = it.linha; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H * k); c.stroke() }
+      c.setLineDash([]); c.font = '500 ' + (11 * r) + 'px -apple-system, sans-serif'; c.textBaseline = 'middle'; c.lineJoin = 'round'; c.lineWidth = 3 * r; c.strokeStyle = P.rotulo
+      for (const it of L) {
+        const w = c.measureText(it.texto).width / r + 4
+        let l = null
+        for (let n = 0; n < 4 && !l; n++) for (const x of [it.x + 3, it.x - w - 3]) if (!l && x >= 1 && x + w <= W - 1 && !ocupado({ x, y: y0 + n * (ALT + 2), w, h: ALT })) l = [x, y0 + n * (ALT + 2)]
+        if (!l) { c.fillStyle = it.cor; c.beginPath(); c.arc(it.x * r, (y0 + 3) * k, 2.5 * r, 0, 7); c.fill(); continue }
+        ocupar({ x: l[0], y: l[1], w, h: ALT })
+        c.strokeText(it.texto, (l[0] + 2) * r, (l[1] + ALT / 2) * k); c.fillStyle = it.cor; c.fillText(it.texto, (l[0] + 2) * r, (l[1] + ALT / 2) * k)
+      }
+      c.restore()
+    })
+  }
+}
+const VEREDICTO = { certo: ['✓', 'a teoria acertou'], errado: ['✗', 'a teoria falhou'], parado: ['○', 'o ouro quase não mexeu'] }
+// a dica de um acontecimento: o que foi, para onde a teoria mandava o ouro e o que ele fez (do fecho de antes até ao dia, a uma
+// semana, a um mês e a três meses), o melhor momento do mês para o lado da teoria e o veredicto ao fim de um mês
+function dicaTeoria(a, T, cor) {
+  const pc = v => v == null ? 'ainda não' : (v > 0 ? '+' : v < 0 ? '-' : '') + fmt(Math.abs(v), 1) + '%', [y, m, d] = a.d.split('-')
+  const v = VEREDICTO[a.veredicto], cv = a.veredicto === 'certo' ? P.gt : a.veredicto === 'errado' ? P.rt : P.ct
+  return '<b style="color:' + cor + '">' + T.nome + '</b> · ' + d + '/' + m + '/' + y + (a.h ? ' às ' + hora(a.t) : '')
+    + '<br><b>' + a.nome + '</b>. ' + a.texto
+    + '<br>Pela teoria o ouro devia ' + (a.espera > 0 ? 'subir' : 'descer') + '. ' + (a.ref === 'fecho' ? 'Depois do fecho desse dia' : 'Do fecho de antes') + ':'
+    + '<br>' + (a.ref === 'fecho' ? 'nesse dia ' : 'no dia ') + pc(a.dia) + ' · 1 semana ' + pc(a.semana) + ' · 1 mês ' + pc(a.mes) + ' · 3 meses ' + pc(a.tres)
+    + (a.melhor ? '<br>No melhor momento do mês: ' + pc(a.melhor.v) + ' a ' + dataAno(a.melhor.t + 43200) : '')
+    + '<br><b style="color:' + cv + '">' + (v ? v[0] + ' ' + v[1] + ' ao fim de 1 mês' : 'Ainda não passou um mês') + '</b>'
+    + (T.medidos ? '<br>Esta teoria desde 2004: acertou ' + T.certos + ' de ' + T.medidos + ' vezes.' : '')
+}
+
 function marca(s, casas) {
   const r = s.resultado, aberta = !r || r.estado === 'aberta'
   const bom = r?.eur != null ? r.eur >= 0 : r?.r != null ? r.r >= 0 : null
@@ -274,18 +323,31 @@ export function numerosAviso(l) {
 // o aviso do bot: os TP por onde passou e como acabou pela regra (31/10: no TP2 ou no stop, sem mexer no stop)
 const TIPO_ALVO = { teto: ' de teto', pico: ' depois do pico', incrivel: ' INCRÍVEL', sv3: ' do SV3' }
 const CURTO_SINAL = { teto: 'Teto', pico: 'Pico', incrivel: 'INCRÍVEL', sv3: 'SV3' }
-function dicaAlvo(p, n, casas, nome) {
+// 31/10 («os dados delas pips etc»): quanto deu cada aviso pela regra, em vezes o stop, como o R_REGRA do servidor (tabela)
+const R_FIM = { tp2: 2, stop: -1 }
+function dicaAlvo(p, n, casas, nome, mais = '') {
   const quando = t => hora(t) + (data(t) === data(p.t) ? '' : ' de ' + data(t)), e = p.fim?.estado
   const tps = p.hits.map((t, k) => t != null && !(e === 'tp2' && k === 1) ? 'TP' + (k + 1) + ' às ' + quando(t) : null).filter(Boolean).join(' · ')
   const fim = !p.fim ? 'ainda aberto' : '<b style="color:' + (e === 'stop' ? P.rt : P.gt) + '">'
-    + ({ tp2: '✓ fechou no TP2', stop: '✗ stop' }[e] || e) + ' às ' + quando(p.fim.exato ?? p.fim.t) + '</b>'
+    + ({ tp2: '✓ fechou no TP2', stop: '✗ stop' }[e] || e) + ' às ' + quando(p.fim.exato ?? p.fim.t)
+    + (R_FIM[e] ? ' · ' + (R_FIM[e] > 0 ? '+' : '-') + fmt(Math.abs(R_FIM[e] * (p.entrada - p.sl)), 1) + ' pips' : '') + '</b>'
   return '<b>' + (p.num ? '#' + p.num + ' ' : '') + (p.lado === 'venda' ? 'Venda' : 'Compra') + (TIPO_ALVO[p.tipo] || (nome ? ' · ' + nome : '')) + (n > 1 ? ' ×' + n : '') + '</b> às ' + hora(p.t) + ' de ' + data(p.t)
     + '<br>entrada ' + fmt(p.entrada, casas) + ' · stop ' + fmt(p.sl, casas) + ' · TP2 ' + fmt(p.tps[1], casas) + (tps ? '<br>' + tps : '') + '<br>' + fim
+    + mais + (p.refeito ? '<br><span style="opacity:.75">Refeito pela regra: o bot ainda não mandava avisos, este não foi para o Telegram</span>' : '')
+}
+// 31/10 («os dados delas pips etc», uma de cada vez): os outros avisos de um grupo (o mesmo lado, até 1 h uns dos outros) ficam
+// na caixa do primeiro, mas na tabela conta cada um: na dica, uma linha cada, com a entrada, como acabou e os pips
+function linhaAlvo(q, casas, nome) {
+  const e = q.fim?.estado, k = R_FIM[e], quando = t => hora(t) + (data(t) === data(q.t) ? '' : ' de ' + data(t))
+  return (q.lado === 'venda' ? 'Venda' : 'Compra') + (TIPO_ALVO[q.tipo] || (nome ? ' · ' + nome : '')) + ' às ' + hora(q.t) + ': entrada ' + fmt(q.entrada, casas) + ' · '
+    + (!q.fim ? 'ainda aberto' : '<b style="color:' + (e === 'stop' ? P.rt : P.gt) + '">' + ({ tp2: '✓ TP2', stop: '✗ stop' }[e] || e) + ' às ' + quando(q.fim.exato ?? q.fim.t)
+      + (k ? ' · ' + (k > 0 ? '+' : '-') + fmt(Math.abs(k * (q.entrada - q.sl)), 1) + ' pips' : '') + '</b>')
 }
 
 export function criarGrafico(el, { pedirHistoria = null } = {}) {
   let casas = 2, chave = '', caixas = [], linhasPos = [], linhasFibo = [], porTempo = new Map(), velaPorTempo = new Map(), notas = new Map(), tfAtual = '15m', estK = null, estD = null, estLinhas = [], ultimaVez = null, ultimoPlano = null
   let n = 0, mexeu = false, serieVelas = []   // quantas velas, se ele já mexeu no gráfico e as velas como estão na série
+  let teoDados = null, teoVer = [], teoN = 0   // as teorias (do /api/teorias), as ligadas e quantos acontecimentos estão nas velas
   const rot = t => tfAtual === '1d' ? t + 43200 : t   // a vela do dia começa às 17:00 de NY da véspera: mostra-se a data do dia
   const movel = matchMedia('(max-width: 1000px), (max-height: 520px)')   // o telemóvel, como no estilo.css
   const chart = L.createChart(el, {
@@ -296,8 +358,8 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
     grid: { vertLines: { color: 'rgba(255,255,255,0.035)' }, horzLines: { color: 'rgba(255,255,255,0.035)' } },
     // mais preços na escala (24/10); no telemóvel menos, para não se amontoarem com as etiquetas (25/10)
     rightPriceScale: { borderColor: '#23272c', scaleMargins: { top: 0.08, bottom: 0.06 }, tickMarkDensity: movel.matches ? 2.5 : 1.2 },
-    timeScale: { borderColor: '#23272c', timeVisible: true, secondsVisible: false, rightOffset: 8, lockVisibleTimeRangeOnResize: true, tickMarkFormatter: (t, tipo) => tipo <= 2 ? data(rot(t)) : tipo === 4 ? horaS(t) : hora(t) },
-    localization: { locale: 'pt-PT', timeFormatter: t => tfAtual === '1d' ? data(rot(t)) : data(t) + ' ' + (tfAtual === '1s' ? horaS(t) : hora(t)) },
+    timeScale: { borderColor: '#23272c', timeVisible: true, secondsVisible: false, rightOffset: 8, lockVisibleTimeRangeOnResize: true, tickMarkFormatter: (t, tipo) => tipo === 0 ? ano(rot(t)) : tipo <= 2 ? data(rot(t)) : tipo === 4 ? horaS(t) : hora(t) },
+    localization: { locale: 'pt-PT', timeFormatter: t => tfAtual === '1d' ? dataX(rot(t)) : dataX(t) + ' ' + (tfAtual === '1s' ? horaS(t) : hora(t)) },
     // 25/10 («tenho o rato mais abaixo e ele só assimila acima»): a cruz segue o rato e a escala da direita diz o preço onde ele
     // está; antes colava ao fecho da vela por baixo do rato (o modo íman, que é o de origem)
     crosshair: { mode: L.CrosshairMode.Normal, vertLine: { color: '#3a4047', labelBackgroundColor: '#2a2f35' }, horzLine: { color: '#3a4047', labelBackgroundColor: '#2a2f35' } }
@@ -414,6 +476,13 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
     if (d.simbolo !== 'XAUUSD' || d.tf === '1s' || !pedirHistoria || !(t0 > OURO_DESDE) || aPedir.has(k) || semMais.has(k)) return
     pedirAntes(d, k, Math.min(5000, Math.ceil((t0 - OURO_DESDE) / TFS[d.tf])))
   }
+  // 31/10: com teorias ligadas, o gráfico do dia do ouro vai buscar as velas todas desde 2004 (aos bocados de 5 000, um a seguir
+  // ao outro), para os acontecimentos antigos estarem lá sem arrastar até à ponta
+  function tudoNoDia(d) {
+    const k = d.simbolo + '|' + d.tf
+    if (!teoVer.length || d.simbolo !== 'XAUUSD' || d.tf !== '1d' || !pedirHistoria || !d.velas.length || aPedir.has(k) || semMais.has(k)) return
+    pedirAntes(d, k, 5000)
+  }
   chart.timeScale().subscribeVisibleLogicalRangeChange(lr => { requestAnimationFrame(porQuadro); talvezHistoria(lr) })
   // 23/10 («mete a opção aqui no card de ver o de ontem e hoje»; «preenche o SL com 1 e vermelho»): Tudo (desde o primeiro
   // aviso, é o que abre), Hoje e Ontem no título; a escolha fica até ele mudar
@@ -506,7 +575,7 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
 
   function mostrar(d0, camadas) {
     ultimaVez = [d0, camadas]
-    desdeDia1(d0)
+    desdeDia1(d0); tudoNoDia(d0)
     const d = comHistoria(d0)
     const nova = d.simbolo + '|' + d.tf !== chave
     chave = d.simbolo + '|' + d.tf; casas = d.casas; tfAtual = d.tf
@@ -535,15 +604,18 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
     // com uma estratégia escolhida, só as caixas dela. 25/10 («deveria estar nesses filtros»): os avisos do bot também se
     // escolhem na lista, por tipo (bot-teto, bot-pico, ...); escolhidos, só esses aparecem, mesmo com a camada Alvos desligada
     const ev = camadas.estrVer || [], tiposBot = new Set(ev.filter(v => v.startsWith('bot-')).map(v => v.slice(4)))
-    const alvos = tiposBot.size ? (d.alvos?.lista || []).filter(p => tiposBot.has(p.tipo)) : camadas.alvos && !ev.length ? d.alvos?.lista || [] : [], mAlvos = [], grupos = []
+    // 31/10 («a partir de dia 1»): com uma estratégia do BOT escolhida vão também os avisos refeitos de antes do primeiro do
+    // Telegram (desde 1/10), mais claros e com a dica a dizê-lo
+    const alvos = tiposBot.size ? [...(d.alvos?.refeitos || []), ...(d.alvos?.lista || [])].filter(p => tiposBot.has(p.tipo)) : camadas.alvos && !ev.length ? d.alvos?.lista || [] : [], mAlvos = [], grupos = []
     for (const p of alvos) { const g = grupos.at(-1), u = g?.at(-1); if (u && u.lado === p.lado && p.time - u.time <= 3600) g.push(p); else grupos.push([p]) }
     const fim = alvos.at(-1), rep = grupos.at(-1)?.[0], solto = fim && !fim.fim && rep !== fim && rep.fim ? fim : null, ultimo = solto || rep
     const juntaL = o => { const c = new Linhas(o, xDe); velas.attachPrimitive(c); caixas.push(c) }, fp = x => fmt(x, casas)   // 24/10 («às vezes estou em 4445,00 e é 4445,10»): com as duas casas
     const precos = p => [{ preco: p.sl, cor: P.rt, texto: 'stop ' + fp(p.sl) }, { preco: p.entrada, cor: P.at, texto: 'entrada ' + fp(p.entrada) },
       ...p.tps.map((preco, k) => ({ preco, cor: P.gt, texto: 'TP' + (k + 1) + ' ' + fp(preco) + (p.hits[k] ? ' ✓' : '') }))]
     const caixa = (p, de, ate) => {
-      junta({ de, ate, velas: true, hi: Math.max(p.entrada, p.tps[1]), lo: Math.min(p.entrada, p.tps[1]), fundo: G(0.10), borda: G(0.30) })
-      junta({ de, ate, velas: true, hi: Math.max(p.entrada, p.sl), lo: Math.min(p.entrada, p.sl), fundo: R(0.12), borda: R(0.30) })
+      const a = p.refeito ? 0.5 : 1
+      junta({ de, ate, velas: true, hi: Math.max(p.entrada, p.tps[1]), lo: Math.min(p.entrada, p.tps[1]), fundo: G(0.10 * a), borda: G(0.30 * a) })
+      junta({ de, ate, velas: true, hi: Math.max(p.entrada, p.sl), lo: Math.min(p.entrada, p.sl), fundo: R(0.12 * a), borda: R(0.30 * a) })
     }
     // 24/10 («estes títulos ficam bué confusos», «não quero perder os nomes em cima delas»): os nomes continuam por cima das
     // setas e ao lado dos pontos, desenhados em Rotulos (legíveis por cima das velas e sem se taparem). E ao passar o rato pela
@@ -583,7 +655,7 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
       const fd = p.fim && !visto(p.fim.t) ? p.fim : null, n = g.length - (solto && g.includes(solto) ? 1 : 0)
       const depois = corte == null ? '' : fd ? (fd.estado === 'stop' ? ' · stop' : ' · TP2') + quando(fd.exato ?? fd.t, p.time)
         : melhor > antes ? ' · TP' + melhor + quando(p.hits[melhor - 1], p.time) : ''
-      const h = dicaAlvo(p, n, casas, estrDe.get(p.tipo)?.nome)
+      const h = dicaAlvo(p, n, casas, estrDe.get(p.tipo)?.nome, g.slice(1).filter(q => q !== solto).map(q => '<br>' + linhaAlvo(q, casas, estrDe.get(q.tipo)?.nome)).join(''))
       caixa(p, p.time, ate)
       // as linhas do TP1 e do TP2 dentro da caixa verde; no último sinal, todas com o preço escrito e um ✓ no TP tocado
       // 23/10 («isto fica sempre do lado direito, para não confundir»): os preços do último aviso vão sempre até à direita
@@ -654,6 +726,24 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
       junta({ hi: Math.max(z.hi, z.mid + meia), lo: Math.min(z.lo, z.mid - meia), fundo: z.tipo === 'teto' ? R(0.13) : G(0.13),
         texto: z.tipo + ' ' + fmt(z.mid, casas === 2 ? 1 : casas) + ' · ' + z.nome, cor: z.tipo === 'teto' ? P.rt : P.gt })
     }
+    // as teorias ligadas: cada acontecimento na vela deste tempo onde cai (a primeira que acaba depois dele), por cima de tudo.
+    // Nos gráficos claros, as cores das teorias mais escuras, para se lerem no branco
+    teoN = 0
+    if (teoVer.length && teoDados?.lista?.length && serieVelas.length) {
+      const p = TFS[d.tf] || 900, V = serieVelas, fimV = V.at(-1).time + p, claro = P === CORES.branco || P === CORES.papel, TT = new Map(teoDados.teorias.map(x => [x.id, x]))
+      const tom = cor => claro ? cor.split(',').map(x => Math.round(x * 0.62)).join(',') : cor
+      const velaQueTem = t => { if (t < V[0].time || t >= fimV) return null; let a = 0, b = V.length - 1; while (a < b) { const m = (a + b) >> 1; if (V[m].time + p <= t) a = m + 1; else b = m } return V[a].time }
+      const itens = []
+      for (const a of teoDados.lista) {
+        const T = TT.get(a.teoria), time = T && teoVer.includes(a.teoria) ? velaQueTem(a.t) : null
+        if (time == null) continue
+        const cor = 'rgb(' + tom(T.cor) + ')'
+        itens.push({ time, cor, linha: 'rgba(' + tom(T.cor) + ',0.5)', texto: a.nome + (VEREDICTO[a.veredicto] ? ' ' + VEREDICTO[a.veredicto][0] : '') })
+        nota(time, dicaTeoria(a, T, cor))
+      }
+      teoN = itens.length
+      if (itens.length) { const ac = new Acontecimentos(itens, xDe, movel.matches ? 44 : 4); velas.attachPrimitive(ac); caixas.push(ac) }
+    }
     velaPorTempo = new Map()
     const pads = camadas.velas ? d.padroes || [] : []
     for (const v of pads) velaPorTempo.set(v.time, [...(velaPorTempo.get(v.time) || []), v])
@@ -722,5 +812,7 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
     if (w.time > u.time) { n++; serieVelas.push(w) } else serieVelas[serieVelas.length - 1] = w
     return w.time
   }
-  return { mostrar, plano, tema, grelha, vivo }
+  // 31/10: as teorias chegam à parte (o /api/teorias) e ficam até mudarem; devolve quantos acontecimentos ficaram nas velas
+  function teorias(dados, ver) { teoDados = dados; teoVer = ver || []; if (ultimaVez) mostrar(...ultimaVez); return teoN }
+  return { mostrar, plano, tema, grelha, vivo, teorias }
 }
