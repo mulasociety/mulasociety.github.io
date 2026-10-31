@@ -188,6 +188,9 @@ class Rotulos {
       c.font = '500 ' + (11 * r) + 'px -apple-system, sans-serif'; c.textBaseline = 'middle'; c.lineJoin = 'round'; c.lineWidth = 3 * r; c.strokeStyle = P.rotulo
       const dentro = y => Math.max(1, Math.min(H - ALT - 1, y))
       for (const it of L) {
+        // 31/10 (telemóvel): uma seta que já saiu do gráfico fica sem nome, e os nomes encostam-se para dentro. No telemóvel o
+        // «#20 Compra · Liquidez ×» aparecia cortado na borda («0 Compra · Liquidez ×») e o «✓» de outro ficava sozinho no canto
+        if (it.x < 0 || it.x > W) continue
         const w = c.measureText(it.texto).width / r + 4, f = S * it.tam, lugares = []
         if (it.ponto) {
           const y = dentro(it.cima ? it.yc - f / 2 - 2 - ALT : it.yc + f / 2 + 2), yl = dentro(it.yc - ALT / 2)
@@ -196,7 +199,8 @@ class Rotulos {
           const y = dentro(it.cima ? it.base - ALT - n * (ALT + 2) : it.base + n * (ALT + 2))
           lugares.push([it.x - w / 2, y], [it.x - 6, y], [it.x + 6 - w, y])
         }
-        const l = lugares.find(([x, y]) => !ocupado({ x, y, w, h: ALT })) || (it.ponto ? null : lugares[0])
+        const cabem = lugares.map(([x, y]) => [Math.max(1, Math.min(W - w - 1, x)), y])
+        const l = cabem.find(([x, y]) => !ocupado({ x, y, w, h: ALT })) || (it.ponto ? null : cabem[0])
         if (!l) continue
         ocupar({ x: l[0], y: l[1], w, h: ALT })
         c.strokeText(it.texto, (l[0] + 2) * r, (l[1] + ALT / 2) * k); c.fillStyle = it.cor; c.fillText(it.texto, (l[0] + 2) * r, (l[1] + ALT / 2) * k)

@@ -2,15 +2,16 @@
 <html lang="pt-PT" class="amigo">
 <head>
 <meta charset="utf-8">
-<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- 31/10: fora dos motores de busca -->
+<meta name="robots" content="noindex, nofollow">
 <meta name="jarvis-codigo" content="__CODIGO__">
 <title>MULASOCIETY ORG.</title>
-<script>window.JARVIS_API = 'https://nefwmezamnjbgtswjkoy.supabase.co/functions/v1/jarvis-amigo'; window.JARVIS_VERSAO = '814d1631b9'</script>
+<script>window.JARVIS_API = 'https://nefwmezamnjbgtswjkoy.supabase.co/functions/v1/jarvis-amigo'; window.JARVIS_VERSAO = 'e15890ea71'</script>
 <link rel="preconnect" href="https://nefwmezamnjbgtswjkoy.supabase.co" crossorigin>
-<link rel="stylesheet" href="estilo.css?v=814d1631b9">
+<link rel="stylesheet" href="estilo.css?v=e15890ea71">
 <!-- 31/10 («desempenhos melhores no mobile»): o grafico.js vem logo com a página, e não só depois de o app.js chegar e o pedir -->
-<link rel="modulepreload" href="grafico.js?v=814d1631b9">
+<link rel="modulepreload" href="grafico.js?v=e15890ea71">
 <script>try{var g=localStorage.getItem('jarvis-grafico');if(g&&g!=='escuro')document.documentElement.dataset.graf=g}catch(e){}</script>
 <link rel="icon" href="favicon.png">
 <!-- 31/10 («põe o MULA FOREX como app no ecrã principal do iPhone»): aberto pelo ícone fica sem as barras do Safari. A barra
@@ -33,7 +34,7 @@
     <div class="it" id="resultado"><button type="button" class="temaBtn fatBtn" id="fatBtn" aria-pressed="false" hidden><span class="fat-longo">Calendário de faturação</span><span class="fat-curto">Faturação</span> <b class="num" id="fatBtnV"></b></button><span id="resultadoTxt"></span></div>
     <div class="dir">
       <div class="it" id="topoRobo" hidden></div>
-      <button type="button" class="temaBtn" id="lucrosBtn" aria-haspopup="dialog" hidden>Lucros</button>
+      <div class="it" id="lucrosHoje" hidden>Lucros</div>
       <button type="button" class="temaBtn" id="temaBtn" aria-haspopup="dialog">Gráfico</button>
       <button type="button" class="temaBtn" id="grelhaBtn" aria-haspopup="dialog">Grelha</button>
       <div class="it" id="topoConta"></div>
@@ -92,23 +93,21 @@
   <!-- 30/10 («esta parte quero que seja uma página mesmo [...] para assim termos mais informação, não quero tipo popform»): o
        calendário de faturação numa página, no lugar das três colunas; a barra de cima fica (app.js) -->
   <main class="pagina" id="pagFat" aria-labelledby="fatTit" hidden>
-    <header class="pag-cab"><button type="button" class="temaBtn" id="fatVoltar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>Voltar<span class="pc"> ao gráfico</span></button><h1 id="fatTit">Calendário de faturação</h1><div class="fat-mes" id="fatMes"></div></header>
+    <header class="pag-cab"><button type="button" class="temaBtn" id="fatVoltar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>Voltar<span class="pc"> ao gráfico</span></button><h1 id="fatTit">Calendário de faturação</h1><button type="button" class="temaBtn" data-pag="#probabilidades">Probabilidades</button><div class="fat-mes" id="fatMes"></div></header>
     <div id="fatCorpo"><p class="fat-nota">A ler os avisos.</p></div>
+  </main>
+  <!-- 31/10 («faz tipo o mesmo género que calendário, mas que anotes tipo de manhã esta estratégia acertou X vezes a esta hora»):
+       o calendário de probabilidades, a página irmã da faturação, com o mesmo desenho (app.js, desenharProb) -->
+  <main class="pagina" id="pagProb" aria-labelledby="probTit" hidden>
+    <header class="pag-cab"><button type="button" class="temaBtn" id="probVoltar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>Voltar<span class="pc"> ao gráfico</span></button><h1 id="probTit">Calendário de probabilidades</h1><button type="button" class="temaBtn" data-pag="#faturacao">Faturação</button><label class="prob-estr"><span class="sr">Estratégia</span><select id="probEstr"></select></label></header>
+    <div id="probCorpo"><p class="fat-nota">A ler os avisos.</p></div>
   </main>
   <!-- 24/10 («no mobile ainda está difícil mexer; faz algo do género do TradingView para mobile»): no telemóvel não há
        página a correr; um painel de cada vez, a ecrã inteiro, e os separadores em baixo -->
   <nav class="mNav" id="mNav" aria-label="Painéis"><button type="button" data-m="grafico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v18M17 3v18"/><rect x="5" y="7" width="4" height="8" rx="1"/><rect x="15" y="9" width="4" height="7" rx="1"/></svg>Gráfico</button><button type="button" data-m="estrategias"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Estratégias</button><button type="button" data-m="ordem"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Ordem</button><button type="button" data-m="analise"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>Análise</button><button type="button" data-m="noticias"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>Notícias</button></nav>
 </div>
 <div class="dicaTopo" id="resultadoDica" hidden></div>
-<!-- 25/10: o separador «Lucros» (app.js), por cima do ecrã -->
-<div class="lucros" id="lucros" hidden>
-  <div class="lucrosFundo" data-fecha></div>
-  <section class="lucrosCaixa" role="dialog" aria-modal="true" aria-labelledby="lucrosTit">
-    <header class="lucrosCab"><h2 id="lucrosTit">Lucros</h2><button type="button" class="lucrosFechar" id="lucrosFechar" data-fecha aria-label="Fechar">×</button></header>
-    <div id="lucrosCorpo"></div>
-  </section>
-</div>
-<!-- 29/10: o «Ver mais» dos avisos que fecharam (app.js), na mesma janela dos Lucros -->
+<!-- 29/10: o «Ver mais» dos avisos que fecharam (app.js), na janela que era a dos Lucros (31/10: essa saiu; as classes lucros* ficam para esta) -->
 <div class="lucros" id="fechados" hidden>
   <div class="lucrosFundo" data-fecha></div>
   <section class="lucrosCaixa fechadosCaixa" role="dialog" aria-modal="true" aria-labelledby="fechadosTit">
@@ -116,6 +115,6 @@
     <div id="fechadosCorpo"></div>
   </section>
 </div>
-<script type="module" src="app.js?v=814d1631b9"></script>
+<script type="module" src="app.js?v=e15890ea71"></script>
 </body>
 </html>
