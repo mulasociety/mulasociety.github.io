@@ -247,10 +247,14 @@ body { background:var(--textura), linear-gradient(180deg, #121720 0%, #0e121a 10
    devagar, a borda e o fundo, sem brilho (app.js marca .perto). Com o movimento reduzido fica só a borda mais forte */
 .evento.perto { border-color:rgba(214,195,159,.75) } .evento.forte.perto { border-color:rgba(204,147,144,.85) }
 @media (prefers-reduced-motion: no-preference) {
-  .evento.perto { animation:pulsaEv 2.4s ease-in-out infinite } .evento.forte.perto { animation-name:pulsaEvForte }
+  /* 31/10 (telemóvel, «travamento»): o pulsar era nas cores da borda e do fundo, e o telemóvel refazia a caixa 60 vezes por
+     segundo durante a hora toda. Agora a caixa fica nas cores de sempre e pulsa por cima uma camada só na opacidade, que o ecrã
+     anima sozinho, sem refazer nada. A camada fica por trás das letras, com as cores contadas para dar os mesmos tons de antes */
+  .evento.perto { position:relative; z-index:0; border-color:rgba(214,195,159,.35) } .evento.forte.perto { border-color:rgba(204,147,144,.5) }
+  .evento.perto::after { content:''; position:absolute; inset:-1px; z-index:-1; border:1px solid rgba(214,195,159,.69); border-radius:inherit; background:rgba(214,195,159,.084); opacity:0; pointer-events:none; animation:pulsaEv 2.4s ease-in-out infinite }
+  .evento.forte.perto::after { border-color:rgba(204,147,144,.8); background:rgba(204,147,144,.096) }
 }
-@keyframes pulsaEv { 0%, 100% { border-color:rgba(214,195,159,.35); background-color:rgba(214,195,159,.05) } 50% { border-color:rgba(214,195,159,.8); background-color:rgba(214,195,159,.13) } }
-@keyframes pulsaEvForte { 0%, 100% { border-color:rgba(204,147,144,.5); background-color:rgba(204,147,144,.06) } 50% { border-color:rgba(204,147,144,.9); background-color:rgba(204,147,144,.15) } }
+@keyframes pulsaEv { 50% { opacity:1 } }
 .eventos { display:flex; flex-direction:column; gap:6px; padding:2px 14px 12px } .eventos .evento { display:flex; font-size:12.5px }
 /* na barra de cima o «.topo .it b» punha a moeda e a hora a branco: a cor de areia (ou rosa nos fortes) ganha aqui */
 .topo .it .evento b.moeda, .topo .it .evento b.hora { color:var(--areia); font-weight:700 }
