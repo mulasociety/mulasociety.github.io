@@ -5,6 +5,7 @@
 const L = window.LightweightCharts
 const LX = 'Europe/Lisbon', NB = ' '
 const TFS = { '1s': 1, '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400 }
+const OURO_DESDE = Date.UTC(2026, 8, 30, 23) / 1000   // 1/10 às 00:00 de Lisboa: daqui para a frente, o ouro tem o gráfico todo
 const fmt = (v, c) => { const s = Math.abs(v).toFixed(c).split('.'); return (v < 0 ? '-' : '') + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, NB) + (s[1] ? ',' + s[1] : '') }
 const hora = t => new Date(t * 1000).toLocaleTimeString('pt-PT', { timeZone: LX, hour: '2-digit', minute: '2-digit' })
 const horaS = t => new Date(t * 1000).toLocaleTimeString('pt-PT', { timeZone: LX, hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -392,13 +393,23 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
     else { historias.set(k, novo); if (historias.size > 6) historias.delete(historias.keys().next().value) }
     if (k === chave && ultimaVez) mostrar(...ultimaVez)
   }
+  const pedirAntes = (d, k, n) => {
+    aPedir.add(k)
+    pedirHistoria(d.simbolo, d.tf, (historias.get(k)?.velas[0] ?? d.velas[0]).time, n).then(receberHistoria, () => setTimeout(() => aPedir.delete(k), 30e3))
+  }
   // só quando foi ele a arrastar (no telemóvel o gráfico nasce sem largura e a vista dava a ponta esquerda logo ao abrir)
   function talvezHistoria(lr) {
     if (!lr || !mexeu || !(lr.from < 30) || !pedirHistoria || !ultimaVez) return
     const d = ultimaVez[0], k = d.simbolo + '|' + d.tf
     if (aPedir.has(k) || semMais.has(k) || !d.velas.length) return
-    aPedir.add(k)
-    pedirHistoria(d.simbolo, d.tf, (historias.get(k)?.velas[0] ?? d.velas[0]).time).then(receberHistoria, () => setTimeout(() => aPedir.delete(k), 30e3))
+    pedirAntes(d, k)
+  }
+  // 31/10 («quero todo o gráfico de xauusd desde dia 1»): no ouro, as velas de antes da janela até 1/10 vêm logo ao abrir,
+  // num pedido só (no de 15 min eram uns dez ecrãs a arrastar). A janela de 30 em 30 s continua a mesma
+  function desdeDia1(d) {
+    const k = d.simbolo + '|' + d.tf, t0 = (historias.get(k)?.velas[0] ?? d.velas[0])?.time
+    if (d.simbolo !== 'XAUUSD' || d.tf === '1s' || !pedirHistoria || !(t0 > OURO_DESDE) || aPedir.has(k) || semMais.has(k)) return
+    pedirAntes(d, k, Math.min(5000, Math.ceil((t0 - OURO_DESDE) / TFS[d.tf])))
   }
   chart.timeScale().subscribeVisibleLogicalRangeChange(lr => { requestAnimationFrame(porQuadro); talvezHistoria(lr) })
   // 23/10 («mete a opção aqui no card de ver o de ontem e hoje»; «preenche o SL com 1 e vermelho»): Tudo (desde o primeiro
@@ -492,6 +503,7 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
 
   function mostrar(d0, camadas) {
     ultimaVez = [d0, camadas]
+    desdeDia1(d0)
     const d = comHistoria(d0)
     const nova = d.simbolo + '|' + d.tf !== chave
     chave = d.simbolo + '|' + d.tf; casas = d.casas; tfAtual = d.tf

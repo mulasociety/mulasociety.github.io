@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=e15890ea71'
+import { criarGrafico, numerosAviso } from './grafico.js?v=e182251518'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -38,7 +38,7 @@ const LIMPO = { sv3: true, ema: false, niveis: true, diario: false, asia: false,
 if (est.v !== 2) { est.camadas = { ...LIMPO }; est.v = 2; localStorage.setItem('jarvis', JSON.stringify(est)) }
 est.camadas = { ...LIMPO, ...(est.camadas || {}) }
 const guardar = () => localStorage.setItem('jarvis', JSON.stringify(est))
-const grafico = criarGrafico($('grafico'), { pedirHistoria: (s, tf, ate) => api('historico?s=' + s + '&tf=' + tf + '&ate=' + ate) })
+const grafico = criarGrafico($('grafico'), { pedirHistoria: (s, tf, ate, n) => api('historico?s=' + s + '&tf=' + tf + '&ate=' + ate + (n ? '&n=' + n : '')) })
 let radarLista = [], ultimoGrafico = null, ultimoPlano = null, fechado = false
 // o lote e o câmbio do /api/resultado (os € dos avisos a decorrer) e o último preço que se lhes aplicou
 let valorLote = null, pxAbertos = null
