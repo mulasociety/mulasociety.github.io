@@ -191,7 +191,7 @@ class Rotulos {
       for (const it of L) {
         // 31/10 (telemóvel): uma seta que já saiu do gráfico fica sem nome, e os nomes encostam-se para dentro. No telemóvel o
         // «#20 Compra · Liquidez ×» aparecia cortado na borda («0 Compra · Liquidez ×») e o «✓» de outro ficava sozinho no canto
-        if (it.x < 0 || it.x > W) continue
+        if (it.x < 0 || it.x > W || !it.texto) continue
         const w = c.measureText(it.texto).width / r + 4, f = S * it.tam, lugares = []
         if (it.ponto) {
           const y = dentro(it.cima ? it.yc - f / 2 - 2 - ALT : it.yc + f / 2 + 2), yl = dentro(it.yc - ALT / 2)
@@ -563,8 +563,10 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
       const v = p.lado === 'venda', cor = v ? P.rt : P.gt, nums = numerosAviso(g.map(q => q.num))
       nomeSeta(p.time, v, (nums ? nums + ' ' : '') + (v ? 'Venda' : 'Compra') + (p.tipo === 'teto' ? ' de teto' : TIPO_ALVO[p.tipo] ? '' : ' · ' + (estrDe.get(p.tipo)?.curto || p.tipo)) + extra, cor, 0.7, p.entrada)
     }
-    const pontos = (p, visto, h) => {
-      const ponto = (t, o, texto, desvio = 0) => { mAlvos.push({ time: t, shape: 'circle', size: 0.5, ...o }); nota(t, h); rotulos.push({ ponto: true, time: t, preco: o.price, cima: desvio < 0, desvio, texto, cor: o.color, tam: 0.5 }) }
+    // 31/10 (telemóvel, «TP1 TP1 3 874,20 ✓»): os pontos do último aviso ficam sem nome, porque as linhas dele já o têm à
+    // direita, com o preço e o ✓. No telemóvel o «TP1» do ponto ficava encostado ao da linha; o círculo e a dica continuam
+    const pontos = (p, visto, h, mudo = false) => {
+      const ponto = (t, o, texto, desvio = 0) => { mAlvos.push({ time: t, shape: 'circle', size: 0.5, ...o }); nota(t, h); rotulos.push({ ponto: true, time: t, preco: o.price, cima: desvio < 0, desvio, texto: mudo ? '' : texto, cor: o.color, tam: 0.5 }) }
       p.hits.forEach((t, k) => { if (t != null && visto(t)) ponto(t, { position: 'atPriceMiddle', price: p.tps[k], color: P.gt }, 'TP' + (k + 1)) })
       if (p.fim?.estado === 'stop' && visto(p.fim.t)) ponto(p.fim.t, { position: 'atPriceMiddle', price: p.sl, color: P.rt }, 'stop')
     }
@@ -586,13 +588,13 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
       // do gráfico, mesmo com a caixa já fechada
       juntaL({ de: p.time, ate: p === ultimo ? null : ate, itens: p === ultimo ? precos(p) : [0, 1].map(k => ({ preco: p.tps[k], cor: G(0.45) })) })
       if (!camadas.sinais) { seta(p, (n > 1 ? ' ×' + n : '') + (depois || acabou(p)), g.filter(q => q !== solto)); for (const q of g) if (q !== solto) nota(q.time, h) }
-      pontos(p, visto, h)
+      pontos(p, visto, h, p === ultimo)
     })
     if (solto) {
       const h = dicaAlvo(solto, 1, casas, estrDe.get(solto.tipo)?.nome)
       caixa(solto, solto.time, null); juntaL({ de: solto.time, ate: null, itens: precos(solto) })
       if (!camadas.sinais) { seta(solto, acabou(solto)); nota(solto.time, h) }
-      pontos(solto, t => t >= solto.time, h)
+      pontos(solto, t => t >= solto.time, h, true)
     }
     marcasAlvos.setMarkers(mAlvos.filter(naJanela).sort((a, b) => a.time - b.time))
     if (camadas.alvos) quadroAlvos(d.alvos, d.simbolo === 'XAUUSD'); else quadro.style.display = 'none'

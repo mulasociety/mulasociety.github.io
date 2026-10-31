@@ -987,6 +987,10 @@ button, a, summary, select, [role="button"] { -webkit-tap-highlight-color:transp
   body[data-m="analise"] .calendario #calendario { min-height:0 }
   body[data-m="analise"] .abas .separadores { position:sticky; top:0; z-index:3; background:inherit }
   .abas .separadores > [data-aba] { min-height:44px }
+  /* 31/10 (telemóvel): na Ordem, os nomes das colunas, o dia e o ✓ do TP estavam nos 10 e 10,5 px, abaixo do resto do painel.
+     Sobem para o tamanho do título (11 px) e das horas (11,5 px); no Mac ficam como estavam */
+  .ab-tit span { font-size:11.5px }
+  .ab-dia, .ab-niv b i { font-size:11px }
 }
 @media (max-width: 760px) {
   /* as estratégias uma por linha: o nome inteiro em cima e os números por baixo. Com seis colunas lado a lado o nome ficava
