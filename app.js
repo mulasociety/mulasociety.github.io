@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=163b32f83c'
+import { criarGrafico, numerosAviso } from './grafico.js?v=edd9ef6721'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -391,8 +391,19 @@ function analise(r) {
   const diaH = ms => { const d = diaDe(ms); return (d === diaDe(Date.now()) ? '' : d === diaDe(Date.now() + 864e5) ? 'amanhã ' : d + ' ') + hhmm(ms).replace(':', 'h') }
   // 25/10: os números da ForexFactory vêm com ponto («4.00%»); aqui com a vírgula, como o resto do Jarvis
   const pt = v => String(v).replace(/(\d)\.(\d)/g, '$1,$2')
-  const evento = e => '<span class="evento' + (e.impacto === 'High' ? ' forte' : '') + '" data-quando="' + e.quando + '" title="' + esc(e.titulo + (e.previsao ? ', previsto ' + pt(e.previsao) : '') + (e.anterior ? ', anterior ' + pt(e.anterior) : '')) + '"><b class="moeda">' + esc(e.moeda) + '</b><span class="tt">' + esc(e.titulo) + '</span>'
-    + (e.previsao ? '<span class="prev">previsto ' + esc(pt(e.previsao)) + '</span>' : '') + '<b class="hora num">' + diaH(e.quando) + '</b></span>'
+  // 01/11 («verifica esse site [o MRKT] e vê se podemos aproveitar algo»): no ouro, o NFP, o CPI, o PPI e a Fed levam por
+  // baixo o que ele fez na hora a seguir nas outras vezes desde 2024 (servidor/noticias-fortes.mjs); a explicação vai na dica
+  const MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+  const diaMes = s => +s.slice(8, 10) + '/' + +s.slice(5, 7)
+  const lado = h => { const n = h.sobe + h.desce, p = n ? h.sobe / n : 0.5; return p > 0.65 ? 'subiu mais vezes' : p < 0.35 ? 'desceu mais vezes' : 'não tem lado certo' }
+  const histDica = h => (h.junto ? 'Sai ao mesmo minuto que o ' + h.junto + '. ' : '') + 'Desde ' + MES[+h.desde.slice(5, 7) - 1] + ' de ' + h.desde.slice(0, 4) + ' saiu ' + h.n + ' vezes. Na hora a seguir, o ouro andou de ponta a ponta '
+    + fmt(h.vezes, 1) + ' vezes o que anda numa hora normal a esta hora' + (h.dolares ? ': com as horas normais destas semanas (' + h.normal + ' $), dá uns ' + h.dolares + ' $' : '')
+    + '. Fechou essa hora a subir ' + h.sobe + ' vezes e a descer ' + h.desce + ': ' + lado(h) + '. Da última vez (' + diaMes(h.ultima.d) + ') '
+    + (Math.abs(h.ultima.m60) < 2 ? 'quase não mexeu' : (h.ultima.m60 > 0 ? 'subiu ' : 'desceu ') + fmt(Math.abs(h.ultima.m60), 0) + ' $') + ' numa hora e andou ' + fmt(h.ultima.a60, 0) + ' $ de ponta a ponta. Contado nas velas de 1 min da Dukascopy.'
+  const hist = h => '<span class="hist" title="' + esc(histDica(h)) + '">' + (h.junto ? 'sai com o ' + h.junto + ': ' : '') + 'costuma andar ' + (h.dolares ? h.dolares + ' $ na hora a seguir (' + fmt(h.vezes, 1) + '× o normal)' : fmt(h.vezes, 1) + '× o normal na hora a seguir')
+    + ' · ▲' + h.sobe + ' ▼' + h.desce + '</span>'
+  const evento = e => '<span class="evento' + (e.impacto === 'High' ? ' forte' : '') + (e.hist ? ' comHist' : '') + '" data-quando="' + e.quando + '" title="' + esc(e.titulo + (e.previsao ? ', previsto ' + pt(e.previsao) : '') + (e.anterior ? ', anterior ' + pt(e.anterior) : '')) + '"><b class="moeda">' + esc(e.moeda) + '</b><span class="tt">' + esc(e.titulo) + '</span>'
+    + (e.previsao ? '<span class="prev">previsto ' + esc(pt(e.previsao)) + '</span>' : '') + '<b class="hora num">' + diaH(e.quando) + '</b>' + (e.hist ? hist(e.hist) : '') + '</span>'
   // 24/10: a grelha do mês (mesCalendario) saiu a pedido dele («mete o anterior, não o das datas»); ficam os eventos
   // 25/10 («tens a certeza?»): com a ForexFactory a recusar, a lista dela fica velha e só entram as dos EUA (da nuvem do
   // ouro); no ouro chegam, nos pares diz-se que faltam as das outras moedas

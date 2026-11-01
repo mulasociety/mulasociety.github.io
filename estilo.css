@@ -754,6 +754,19 @@ html[data-graf] .cardGraf .timer b { color:var(--texto) }
 .eventos .evento .tt { flex:0 1 auto; min-width:0 }
 .eventos .evento .prev { flex:0 50 auto; min-width:0; overflow:hidden; font-size:11px }
 .eventos .evento.semPrev .prev { display:none }
+/* 01/11: o que o ouro fez nas outras vezes (NFP, CPI, PPI e a Fed), numa linha por baixo do nome */
+/* em grelha, para a linha caber por baixo: o nome encolhe antes da hora e o previsto antes do nome, como na linha sem ela */
+.eventos .evento.comHist { display:grid; grid-template-columns:auto minmax(0,max-content) minmax(0,1fr) auto; column-gap:6px; row-gap:1px }
+.eventos .evento.comHist > * { grid-row:1 }
+.eventos .evento.comHist .moeda { grid-column:1 } .eventos .evento.comHist .tt { grid-column:2 } .eventos .evento.comHist .prev { grid-column:3 } .eventos .evento.comHist .hora { grid-column:4 }
+.eventos .evento .hist { grid-column:1 / -1; grid-row:2; color:var(--suave); font-size:11px; line-height:1.3; cursor:help }
+@media (min-width: 1001px) and (min-height: 521px) {
+  /* na coluna estreita: a moeda e a hora, o nome por baixo e a linha no fim, a partir em duas se for preciso */
+  .col.esq .eventos .evento.comHist { grid-template-columns:auto 1fr; gap:1px 8px }
+  .col.esq .eventos .evento.comHist .moeda { grid-column:1; grid-row:1 } .col.esq .eventos .evento.comHist .hora { grid-column:2; grid-row:1 }
+  .col.esq .eventos .evento.comHist .tt { grid-column:1 / -1; grid-row:2 }
+  .col.esq .eventos .evento.comHist .hist { grid-column:1 / -1; grid-row:3; font-size:10.5px }
+}
 /* 25/10: enquanto o gráfico carrega, o tempo marcado fica mais claro */
 #tfs[aria-busy="true"] button.on { opacity:.55 }
 /* 25/10 («quantas tenho a decorrer? mete ali em cima as entradas, tipo TP e SL, onde diz em pausa»): os avisos abertos no
