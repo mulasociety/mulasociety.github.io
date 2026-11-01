@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=edd9ef6721'
+import { criarGrafico, numerosAviso } from './grafico.js?v=8bff4d20ba'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1006,6 +1006,18 @@ function desenharFat() {
 // dá lucro: a cor de cada quadrado diz se dava lucro, não se acertou mais de metade
 let probEstr = 'bot', probSel = null
 try { probEstr = localStorage.getItem('jarvis-prob') || 'bot' } catch {}
+// 1/11 («quero que melhores esta parte, sei lá, podes fazer uma aba lá em cima com os títulos»): a página em quatro abas, com
+// os títulos das partes. Vê-se uma de cada vez e fica a última que se abriu
+const ABAS_PROB = ['cal', 'juntas', 'pouca', 'sups']
+let probAba = 'cal'
+try { const a = localStorage.getItem('jarvis-prob-aba'); if (ABAS_PROB.includes(a)) probAba = a } catch {}
+const marcarAbaProb = () => {
+  const n = $('probAbas')
+  for (const b of n.querySelectorAll('[data-aba]')) { const on = b.dataset.aba === probAba; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1 }
+  // no telemóvel a barra desliza: a aba aberta fica toda à vista
+  const b = n.querySelector('.on'), a = b ? b.offsetLeft - 12 : 0, z = b ? b.offsetLeft + b.offsetWidth + 12 - n.clientWidth : 0
+  if (b && n.scrollLeft > a) n.scrollLeft = a; else if (b && n.scrollLeft < z) n.scrollLeft = z
+}
 const roProb = new ResizeObserver(es => es.forEach(e => pontas(e.target)))
 const DSEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'], DSEM_LONGO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
 // sem o sábado, que não tem mercado; o domingo no fim, como no calendário (só a abertura, às 23:00)
@@ -1141,7 +1153,8 @@ function desenharProb() {
       ['Com lua cheia ou nova', f => luaForte(f.t)], ['Nos outros dias', f => !luaForte(f.t)]]]
   ]
   const linhaP = ([rot, f]) => { const x = contas(e.L.filter(f)); return x.n ? '<tr><td>' + rot + '</td><td class="num">' + deN(x) + '</td><td class="num' + cor(x) + '">' + pct(x) + '</td></tr>' : '' }
-  const corpoP = GRUPOS.map(([g, L]) => { const h = L.filter(Boolean).map(linhaP).join(''); return h ? '<tr class="prob-g"><th colspan="3" scope="colgroup">' + g + '</th></tr>' + h : '' }).join('')
+  // 1/11: cada grupo na sua tabela, lado a lado quando há largura (com a aba só para ela, uma tabela ficava larga demais)
+  const corpoP = GRUPOS.map(([g, L]) => { const h = L.filter(Boolean).map(linhaP).join(''); return h ? '<table class="fat-tipos prob-pouca"><thead><tr><th scope="col">' + g + '</th><th scope="col">No TP2</th><th scope="col">Acerto</th></tr></thead><tbody>' + h + '</tbody></table>' : '' }).join('')
   // quanto tempo demoram: a metade dos TP2 e a metade dos stops, e os stops logo nos primeiros 15 min
   const mediana = v => { const s = [...v].sort((p, q) => p - q), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2 }
   const mins = L => { const r = Math.round(mediana(L.map(f => Math.max(0, f.tf - f.t) / 60))); return r >= 60 ? Math.floor(r / 60) + NB + 'h' + (r % 60 ? ' ' + r % 60 + NB + 'min' : '') : r + NB + 'min' }
@@ -1152,7 +1165,7 @@ function desenharProb() {
     : 'Nenhum aviso desta estratégia fechou ainda.'
   const pouca = '<section class="fat-cartao" aria-labelledby="probPoucaTit"><div class="fat-dia-cab"><div><div class="lc-rot">' + esc(e.nome) + '</div><h2 class="fat-dia-nome" id="probPoucaTit">O que pouca gente conta</h2></div></div>'
     + '<p class="fat-dia-txt">' + txtP + '</p>'
-    + (corpoP ? '<table class="fat-tipos prob-pouca"><thead><tr><th scope="col">Quando</th><th scope="col">No TP2</th><th scope="col">Acerto</th></tr></thead><tbody>' + corpoP + '</tbody></table>'
+    + (corpoP ? '<div class="prob-grupos">' + corpoP + '</div>'
       + '<p class="fat-nota">Cada linha conta só os avisos dessa condição: dos que tocaram no TP1, quantos foram ao TP2. Redondo é acabado em 0, como 3 890. A 1.ª vela e o caminho até ao stop medem-se nas velas de 15 min. O dia e a lua são os de Lisboa.</p>' : '')
     + '</section>'
 
@@ -1221,7 +1234,10 @@ function desenharProb() {
   s.value = e.id
   const rolo = $('probCorpo').querySelector('.fat-desliza'), y = rolo?.dataset.de === lista ? rolo.scrollTop : 0
   const foco = document.activeElement?.closest?.('#pagProb [data-p], #pagProb [data-e]'), qual = foco && (foco.dataset.p != null ? '[data-p="' + foco.dataset.p + '"]' : '[data-e="' + foco.dataset.e + '"]')
-  $('probCorpo').innerHTML = resumo + cal + nota + '<div class="fat-baixo">' + doSel + porEstr + '</div><div class="fat-baixo">' + comOutras + aguentam + '</div><div class="fat-baixo">' + pouca + sups + '</div>'
+  const painel = (id, h) => '<div class="prob-painel" role="tabpanel" id="probP-' + id + '" aria-labelledby="probAba-' + id + '"' + (id === probAba ? '' : ' hidden') + '>' + h + '</div>'
+  $('probCorpo').innerHTML = painel('cal', resumo + cal + nota + '<div class="fat-baixo">' + doSel + porEstr + '</div>') + painel('juntas', '<div class="fat-baixo">' + comOutras + aguentam + '</div>')
+    + painel('pouca', pouca) + painel('sups', sups || '<p class="fat-nota">A ler as superstições.</p>')
+  marcarAbaProb()
   const novo = $('probCorpo').querySelector('.fat-desliza')
   roProb.disconnect()
   if (novo) { novo.scrollTop = y; pontas(novo); roProb.observe(novo) }
@@ -1235,6 +1251,22 @@ function desenharProb() {
     desenharProb()
   }
   $('probEstr').addEventListener('change', e => escolher(e.target.value))
+  // as abas: carregar, ou as setas do teclado (e o Home e o End) com uma delas escolhida
+  const abaProb = (id, foco) => {
+    probAba = id
+    try { localStorage.setItem('jarvis-prob-aba', id) } catch {}
+    for (const p of $('probCorpo').querySelectorAll('.prob-painel')) p.hidden = p.id !== 'probP-' + id
+    marcarAbaProb()
+    if (foco) $('probAba-' + id).focus()
+    pag.scrollTo({ top: 0 })
+  }
+  marcarAbaProb()
+  $('probAbas').addEventListener('click', e => { const b = e.target.closest('[data-aba]'); if (b) abaProb(b.dataset.aba) })
+  $('probAbas').addEventListener('keydown', e => {
+    const i = ABAS_PROB.indexOf(probAba), j = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: ABAS_PROB.length - 1 }[e.key]
+    if (j == null) return
+    e.preventDefault(); abaProb(ABAS_PROB[(j + ABAS_PROB.length) % ABAS_PROB.length], true)
+  })
   pag.addEventListener('scroll', e => { if (e.target.classList?.contains('fat-desliza')) pontas(e.target) }, { capture: true, passive: true })
   pag.addEventListener('click', e => {
     const q = e.target.closest('[data-p]'), o = e.target.closest('[data-e]')
