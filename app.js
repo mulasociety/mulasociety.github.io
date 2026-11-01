@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=2cd638ad60'
+import { criarGrafico, numerosAviso } from './grafico.js?v=163b32f83c'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -525,8 +525,19 @@ function marcar() {
 // 25/10 («deveria estar nesses filtros»): os avisos do bot também, por tipo, com os nomes do placar; «todos os avisos»
 // (id bot) liga os quatro tipos
 const JUNTAS = { bot: ['bot-pico', 'bot-teto', 'bot-incrivel', 'bot-sv3'] }, ZIMBA_CINCO = ['liquidez', 'choch', 'orderblock', 'wyckoff', 'elliott']
-const BOT_ESTR = [{ id: 'bot', nome: 'BOT: todos os avisos' }, { id: 'bot-pico', nome: 'BOT: venda depois do pico' }, { id: 'bot-teto', nome: 'BOT: venda de teto' },
-  { id: 'bot-incrivel', nome: 'BOT: INCRÍVEL' }, { id: 'bot-sv3', nome: 'BOT: linhas do SV3' }]
+// 1/11 («mete mesmo SV3 é esse»): o tipo das linhas e do estocástico chama-se SV3 e vem primeiro, como na tabela
+const BOT_ESTR = [{ id: 'bot', nome: 'BOT: todos os avisos' }, { id: 'bot-sv3', nome: 'BOT: SV3' }, { id: 'bot-pico', nome: 'BOT: venda depois do pico' },
+  { id: 'bot-incrivel', nome: 'BOT: INCRÍVEL' }, { id: 'bot-teto', nome: 'BOT: venda de teto' }]
+// 1/11 («o bot com todos os avisos é só BOT», «então junta essas né, tipo mete mesmo SV3 é esse»): a linha de todos os avisos
+// chama-se BOT e cada tipo leva à frente, a cinzento, o que é (o SV3 é só o das linhas e do estocástico). O servidor já manda
+// os nomes novos (arranque.mjs); acertam-se também aqui, porque a função do amigo só os muda quando voltar a ser publicada
+const NOMES_BOT = {
+  bot: { nome: 'BOT', partes: 'SV3, pico, INCRÍVEL e teto' },
+  'bot-sv3': { nome: 'BOT: SV3', partes: 'as três linhas e o estocástico: é este o SV3' },
+  'bot-pico': { partes: 'subida de 30 $ ou mais e o estocástico, sem as linhas' },
+  'bot-incrivel': { partes: 'o SV3 e o pico ao mesmo tempo' },
+  'bot-teto': { partes: 'o topo do dia, sem SV3 nem pico' },
+}
 const estrEscolhidas = () => [...new Set((est.estrVer || []).flatMap(v => JUNTAS[v] || [v]))]
 est.estrVer = estrEscolhidas()
 // 31/10 («busca teorias e impactos do xauusd [...] e cria um filtro no gráfico com a possibilidade de desativar ou ligar»): as
@@ -770,6 +781,7 @@ if (!AMIGO) api('opcoes').then(opcoes, () => opcoes({}))
 // por terem saído com os avisos dele em pausa.
 function resultado(r) {
   if (!r) return
+  for (const e of r.placar || []) Object.assign(e, NOMES_BOT[e.id])
   valorLote = r.lote && r.eurusd ? { lote: r.lote, eurusd: r.eurusd } : null
   resultadosAbertos(pxAbertos)
   const dia = new Date(r.desde * 1000).toLocaleDateString('pt-PT', { timeZone: LX, day: '2-digit', month: '2-digit' })
@@ -949,7 +961,7 @@ function desenharFat() {
   // juntos (teto, pico, INCRÍVEL e as linhas do SV3, que sozinhas só deram um aviso desde 19/10). Aqui também: uma linha com a
   // soma deles e, por baixo, os tipos que fecharam nesse dia, como no placar
   const porTipo = l => [...new Set(l.map(f => f.tipo))].map(t => { const T = l.filter(f => f.tipo === t); return { t, T, v: T.reduce((s, f) => s + f.pips, 0) } }).sort((p, q) => q.v - p.v)
-  const doBot = L.map(f => ({ ...f, pips: R_FAT[f.fim] * f.R - (r.custo || 0) })), partes = porTipo(doBot), PARTE = { ...NOME_AVISO, sv3: 'Linhas do SV3' }
+  const doBot = L.map(f => ({ ...f, pips: R_FAT[f.fim] * f.R - (r.custo || 0) })), partes = porTipo(doBot), PARTE = NOME_AVISO
   const estrDia = [...(doBot.length ? [{ t: 'bot', T: doBot, v: partes.reduce((s, o) => s + o.v, 0), partes }] : []), ...porTipo(LO.filter(f => f.fim))].sort((p, q) => q.v - p.v)
   const escala = Math.max(1e-9, ...[...estrDia, ...partes].map(o => Math.abs(o.v)))
   // 31/10 («quero que isto seja mais relevante»): com título como o do cartão do dia, ao lado dele e da mesma largura (estilo.css).
@@ -957,7 +969,7 @@ function desenharFat() {
   const somaE = estrDia.reduce((s, o) => s + o.v, 0)
   const porEstr = estrDia.length ? '<section class="fat-cartao" aria-labelledby="fatTiposTit"><div class="fat-dia-cab"><div><div class="lc-rot">Por estratégia</div><h2 class="fat-dia-nome" id="fatTiposTit">' + nomeDia(dia) + '</h2></div>'
     + '<b class="fat-dia-v num' + fatCor(somaE) + '">' + pips(somaE) + NB + 'pips</b></div><table class="fat-tipos"><thead><tr><th scope="col">Estratégia</th><th scope="col">Avisos</th><th scope="col">Pips</th></tr></thead><tbody>'
-    + estrDia.map(o => linha(o.partes ? nomeE.bot || 'BOT SV3' : nomeE[o.t] || o.t, o.T, o.v, escala) + (o.partes || []).map(p => linha(PARTE[p.t] || p.t, p.T, p.v, escala, true)).join('')).join('') + '</tbody></table></section>' : ''
+    + estrDia.map(o => linha(o.partes ? nomeE.bot || 'BOT' : nomeE[o.t] || o.t, o.T, o.v, escala) + (o.partes || []).map(p => linha(PARTE[p.t] || p.t, p.T, p.v, escala, true)).join('')).join('') + '</tbody></table></section>' : ''
 
   const seta = (k, nome, d) => '<button type="button" class="fat-seta" data-mes="' + k + '" aria-label="' + nome + '"' + ((k < 0 ? m <= mIni : m >= mHoje) ? ' disabled' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg></button>'
   const foco = document.activeElement?.closest?.('#pagFat [data-mes], #pagFat [data-dia], #pagFat .fat-desliza'), qual = foco && (foco.dataset.mes ? '[data-mes="' + foco.dataset.mes + '"]' : foco.dataset.dia ? '[data-dia="' + foco.dataset.dia + '"]' : '.fat-desliza')
@@ -967,7 +979,7 @@ function desenharFat() {
   // 31/10 («podes retirar isto daqui»): sem a coluna das estratégias em pips ao lado (desde 19/10); essa tabela fica por baixo
   // do gráfico, e o calendário e o dia escolhido ficam com a largura toda
   $('fatCorpo').innerHTML = resumo + cal
-    + '<p class="fat-nota">Cada dia começa com ' + fmt(ini, 0) + ' € de banca: só os avisos do BOT SV3 que foram mesmo para o Telegram (teto, pico, INCRÍVEL e linhas do SV3), com ' + fmt(r.lote, 2) + ' lotes e já sem o spread (' + fmt(r.custo, 2) + NB + '$ em cada aviso). Cada aviso conta no dia em que fechou. As outras estratégias que foram para o Telegram contam em pips, sem mexer na banca. Carrega num dia para ver os avisos dele aqui em baixo.</p>'
+    + '<p class="fat-nota">Cada dia começa com ' + fmt(ini, 0) + ' € de banca: só os avisos do BOT que foram mesmo para o Telegram (SV3, pico, INCRÍVEL e teto), com ' + fmt(r.lote, 2) + ' lotes e já sem o spread (' + fmt(r.custo, 2) + NB + '$ em cada aviso). Cada aviso conta no dia em que fechou. As outras estratégias que foram para o Telegram contam em pips, sem mexer na banca. Carrega num dia para ver os avisos dele aqui em baixo.</p>'
     + (r.conferencia?.erros || []).map(e => '<p class="fat-nota desce">⚠ ' + esc(e) + '</p>').join('')
     + '<div class="fat-baixo">' + doDia + porEstr + '</div>'
   const novo = $('fatCorpo').querySelector('.fat-desliza')
@@ -1011,11 +1023,11 @@ function desenharProb() {
   const r = fatR
   if (!r) return
   const custo = r.custo || 0, agora = naSemana(Date.now())
-  const nomeE = Object.fromEntries((r.placar || []).map(e => [e.id, e.nome.replace(/^ZIMBA FX: /, '')])), PARTE = { ...NOME_AVISO, sv3: 'Linhas do SV3' }
+  const nomeE = Object.fromEntries((r.placar || []).map(e => [e.id, e.nome.replace(/^ZIMBA FX: /, '')])), PARTE = NOME_AVISO
   const A = [...(r.fechos || []).map(f => ({ ...f, bot: true })), ...(r.fechosOutros || [])].filter(f => R_FAT[f.fim] != null).map(f => ({ ...f, ...naSemana(f.t * 1000) }))
   // as escolhas: todas juntas, o BOT SV3 com os tipos dele por baixo (como no placar) e as outras pela ordem de quantos fecharam
   const tipos = bot => { const c = {}; for (const f of A) if (!!f.bot === bot) c[f.tipo] = (c[f.tipo] || 0) + 1; return Object.keys(c).sort((p, q) => c[q] - c[p]) }
-  const ESC = [{ id: 'todas', nome: 'Todas as estratégias', L: A }, { id: 'bot', nome: nomeE.bot || 'BOT SV3', L: A.filter(f => f.bot) },
+  const ESC = [{ id: 'todas', nome: 'Todas as estratégias', L: A }, { id: 'bot', nome: nomeE.bot || 'BOT', L: A.filter(f => f.bot) },
     ...tipos(true).map(t => ({ id: t, nome: PARTE[t] || t, L: A.filter(f => f.bot && f.tipo === t), parte: true })),
     ...tipos(false).map(t => ({ id: t, nome: nomeE[t] || t, L: A.filter(f => !f.bot && f.tipo === t) }))]
   const e = ESC.find(x => x.id === probEstr) || ESC[1]
@@ -1065,7 +1077,7 @@ function desenharProb() {
     + DIAS_PROB.map(d => quadrado(de(e.L, d, b), d, b)).join('') + quadrado(porHora[b], null, b)).join('')
   const cal = '<div class="prob-cal">' + cab + linhas + '<div class="prob-h"><b>O dia todo</b></div>' + porDia.map(x => quadrado(x, x.d, null)).join('') + quadrado(tudo, null, null) + '</div>'
   const desde = bot => { const T = A.filter(f => !!f.bot === bot).map(f => f.t); return T.length ? diaDe(Math.min(...T) * 1000) : '' }
-  const partes = [desde(true) && 'o BOT SV3 desde ' + desde(true), desde(false) && 'as outras estratégias desde ' + desde(false)].filter(Boolean)
+  const partes = [desde(true) && 'o BOT desde ' + desde(true), desde(false) && 'as outras estratégias desde ' + desde(false)].filter(Boolean)
   const nota = '<p class="fat-nota">Os mesmos avisos da faturação, só os que foram para o Telegram' + (partes.length ? ' (' + partes.join(' e ') + ')' : '') + ', cada um na hora de Lisboa a que saiu. Acertar é chegar ao TP2 antes do stop. Como o TP2 paga o dobro do stop, acertar mais de 1 em cada 3 já dá lucro ('
     + empate + '% com o spread): o verde diz que dava lucro, não que acertou mais de metade. Os quadrados sem cor têm menos de ' + POUCOS_PROB + ' avisos e ainda é cedo para confiar neles; a cor fica mais forte quanto mais avisos tiver. Cada aviso que fecha entra sozinho. Carrega num quadrado para ver os avisos dele aqui em baixo.</p>'
 
@@ -1304,7 +1316,7 @@ function placarTP(L) {
       + e.tp.map(k => '<td class="num">' + pct(k, e.n) + '</td>').join('') + '<td class="num">' + pct(e.stop, e.n) + '</td>'
       + '<td class="num' + cor(e.pips) + '">' + (e.n ? pips(e.pips) : '-') + '</td></tr>'
   }
-  const MANEIRAS = [['por tipo de aviso', ['bot-pico', 'bot-teto', 'bot-incrivel', 'bot-sv3']],
+  const MANEIRAS = [['por tipo de aviso', ['bot-sv3', 'bot-pico', 'bot-incrivel', 'bot-teto']],
     ['pelo dólar e pelo petróleo', ['bot-conf', 'bot-semconf'], k => k + ' sem os dados deles'],
     ['pelo aviso de antes', ['bot-depois-stop', 'bot-depois-tp2'], k => k + ' sem um aviso acabado antes']]
   const porId = new Map(F.map(e => [e.id, e])), soltos = F.filter(e => !MANEIRAS.some(([, ids]) => ids.includes(e.id)))
