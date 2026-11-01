@@ -451,9 +451,12 @@ body { background:var(--textura), linear-gradient(180deg, #121720 0%, #0e121a 10
 /* 1/11 («metas essa secção mais pequena [...] duas setas uma lado esquerdo outra lado direito»): 5 ou 10 de cada vez, da melhor
    para a pior, com o lugar de cada uma à frente do nome e uma seta de cada lado */
 .estrTP .placarPag { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:12px }
-.estrTP .pagSeta { width:30px; height:30px; display:grid; place-items:center; padding:0; border:1px solid var(--borda); border-radius:7px; background:transparent; color:var(--suave); cursor:pointer }
-.estrTP .pagSeta svg { width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round }
-@media (hover: hover) { .estrTP .pagSeta:not(:disabled):hover { color:var(--texto); border-color:var(--suave) } }
+/* 1/11 («preciso que estes botões tenham mais relevância»): maiores, com a areia na seta, na borda e por dentro (rgba da
+   --areia, #d6c39f) */
+.estrTP .pagSeta { width:38px; height:38px; display:grid; place-items:center; padding:0; border:1px solid rgba(214,195,159,.5); border-radius:9px; background:rgba(214,195,159,.12); color:var(--areia); cursor:pointer }
+.estrTP .pagSeta svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round }
+@media (hover: hover) { .estrTP .pagSeta:not(:disabled):hover { background:rgba(214,195,159,.2); border-color:rgba(214,195,159,.75) } }
+.estrTP .pagSeta:not(:disabled):active { background:rgba(214,195,159,.26) }
 .estrTP .pagSeta:disabled { opacity:.3; cursor:default }
 .estrTP .placar .pos { display:inline-block; min-width:20px; color:var(--fraco); font-variant-numeric:tabular-nums }
 .estrTP .tit .pagTxt { text-transform:none; letter-spacing:0; color:var(--fraco); margin-left:10px }
@@ -548,7 +551,7 @@ body { background:var(--textura), linear-gradient(180deg, #121720 0%, #0e121a 10
   /* 1/11: no telemóvel as setas vão por baixo, uma de cada lado, para a tabela ficar com a largura toda */
   .estrTP .placarPag { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 0 }
   .estrTP .placarPag .placarDuas { order:-1; flex:1 1 100%; min-width:0 }
-  .estrTP .pagSeta { width:44px; height:36px }
+  .estrTP .pagSeta { width:48px; height:40px }
   .estrTP .tit span + span { display:none }
   .estrTP .placarDuas .placar th:nth-child(2), .estrTP .placarDuas .placar td:nth-child(2) { width:70px }
 }
