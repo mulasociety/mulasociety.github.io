@@ -845,7 +845,14 @@ html[data-graf] .cardGraf .timer b { color:var(--texto) }
 /* 30/10: o calendário de faturação (app.js), no lugar da banca e dos TP da barra. Um quadrado por dia: verde salva se o dia
    fechou a ganhar, rosa velho se fechou a perder, sem cor se nada fechou */
 .topo .it .fatBtn { margin-right:12px; font-size:12.5px; vertical-align:1px }
-.topo .it .fatBtn[aria-pressed="true"] { background:#1b1f23; border-color:#3a4047; color:var(--texto) }
+/* 1/11 («mete este botão com mais relevância para dar a entender que é clicável»): como as setas das Estratégias, com a
+   areia na borda e por dentro (rgba da --areia, #d6c39f), o nome a branco, o calendário à frente e a seta da página no fim */
+.topo .it .fatBtn { gap:7px; padding:4px 7px 4px 9px; color:var(--texto); border-color:rgba(214,195,159,.5); background:rgba(214,195,159,.12) }
+.topo .it .fatBtn svg { stroke:var(--areia) }
+.topo .it .fatBtn .fat-seg { width:12px; height:12px; stroke-width:2.2; margin-left:-2px }
+@media (hover: hover) { .topo .it .fatBtn:hover { background:rgba(214,195,159,.2); border-color:rgba(214,195,159,.75) } }
+.topo .it .fatBtn:active { background:rgba(214,195,159,.26) }
+.topo .it .fatBtn[aria-pressed="true"] { background:rgba(214,195,159,.22); border-color:var(--areia); color:var(--texto) }
 /* a 1440 px (o ecrã dele) só cabe o botão: o nome curto, e o «Hoje» fica na dica e no quadrado de hoje (antes também não cabia) */
 .fat-curto { display:none }
 @media (max-width: 1719px) { .fat-longo, .topo .hojeTP { display:none } .fat-curto { display:inline } }
