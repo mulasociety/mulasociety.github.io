@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=edf5ce52de'
+import { criarGrafico, numerosAviso } from './grafico.js?v=be64b40ed2'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1497,7 +1497,7 @@ function mAtualizar() {
     // são da lista dele («mete as 5»)
     const ed = ['zimba', 'edney', ...ZIMBA_CINCO], bt = ['bot', ...JUNTAS.bot], por = l => l.sort((a, b) => b.ordem - a.ordem), B = ops.filter(o => bt.includes(o.value))
     // 31/10 («coloca esse filtro no gráfico para analisar»): as underground (servidor/underground.mjs) num grupo delas
-    const ug = ['oitenta', 'ib', 'smash', 'oops', 'camarilla3', 'camarilla4', 'judas', 'flash9'], U = ops.filter(o => ug.includes(o.value))
+    const ug = ['oitenta', 'ib', 'smash', 'oops', 'camarilla3', 'camarilla4', 'judas', 'flash9', 'absorcaoOntem'], U = ops.filter(o => ug.includes(o.value))
     // 31/10 («yyya»): a das superstições do ouro (servidor/supersticoes.mjs) num grupo dela
     const sg = ['sexta'], SU = ops.filter(o => sg.includes(o.value))
     return [{ nome: 'Nenhuma', v: '', on: !l.length, radio: true }, ...(B.length ? [{ grupo: '<span class="ouro">BOT</span>' }, ...por(B.map(item))] : []),
