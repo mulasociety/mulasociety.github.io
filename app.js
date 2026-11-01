@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=be64b40ed2'
+import { criarGrafico, numerosAviso } from './grafico.js?v=8c6d1dca72'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1209,6 +1209,14 @@ function desenharProb() {
 // descer (com duas, uma por baixo da outra, o cabeçalho ia-se embora com a primeira a meio da lista)
 const ESTREITO = matchMedia('(max-width: 760px)')
 ESTREITO.addEventListener('change', () => { if (ultimoPlacar?.length) placarTP(ultimoPlacar) })
+// 1/11: o ecrã pequeno, um painel de cada vez (o mesmo do ecraPequeno, mais abaixo), e a largura do cartão a partir da qual
+// cabem duas colunas com os nomes inteiros; ao passar de um lado para o outro, a tabela desenha-se outra vez
+const UM_PAINEL = matchMedia('(max-width: 1000px), (max-height: 520px)'), DUAS_COLUNAS = 1200
+let placarDuasCols = null
+UM_PAINEL.addEventListener('change', () => { if (ultimoPlacar?.length) placarTP(ultimoPlacar) })
+new ResizeObserver(() => {
+  if (ultimoPlacar?.length && !UM_PAINEL.matches && ($('estrTP').clientWidth >= DUAS_COLUNAS) !== placarDuasCols) placarTP(ultimoPlacar)
+}).observe($('estrTP'))
 // 31/10 («a partir de dia 1», uma de cada vez): o título diz desde quando conta o BOT e desde quando contam as outras
 function desdeTit(L) {
   const b = L.find(e => e.id === 'bot')?.desde, o = L.find(e => !/^bot/.test(e.id))?.desde
@@ -1230,8 +1238,8 @@ function placarTP(L) {
   const nome = e => '<b>' + esc(e.nome).replace(/^BOT/, '<span class="ouro">BOT</span>').replace(/^ZIMBA FX/, '<span class="ouro laranja">ZIMBA FX</span>') + '</b>'
   const linha = e => {
     const grupo = e.id === 'bot' && F.length
-    return '<tr title="' + esc(e.autor) + '"' + (grupo ? ' class="grupo"' : filho(e) ? ' data-de="bot"' + (aberto ? '' : ' hidden') : '') + '><td>'
-      + (grupo ? '<button type="button" class="abreGrupo" aria-expanded="' + aberto + '">' + nome(e) + setaGrupo(aberto) + '</button>' : nome(e))
+    return '<tr title="' + esc([e.nome + (e.partes ? ' (' + e.partes + ')' : ''), e.autor].filter(Boolean).join(' · ')) + '"' + (grupo ? ' class="grupo"' : filho(e) ? ' data-de="bot"' + (aberto ? '' : ' hidden') : '') + '><td>'
+      + (pos.has(e.id) ? '<span class="pos">' + pos.get(e.id) + '</span>' : filho(e) ? '<span class="pos"></span>' : '') + (grupo ? '<button type="button" class="abreGrupo" aria-expanded="' + aberto + '">' + nome(e) + setaGrupo(aberto) + '</button>' : nome(e))
       + (e.partes ? ' <span class="partes">' + esc(e.partes) + '</span>' : '') + '</td>'
       + '<td class="num">' + (e.abertas ? '<span class="decorrer" title="' + e.abertas + (e.abertas > 1 ? ' entradas ainda a decorrer' : ' entrada ainda a decorrer') + '">' + RELOGIO + e.abertas + '</span>' : '') + e.n + '</td>'
       + e.tp.map(k => '<td class="num">' + pct(k, e.n) + '</td>').join('') + '<td class="num">' + pct(e.stop, e.n) + '</td>'
@@ -1239,19 +1247,36 @@ function placarTP(L) {
   }
   // as duas colunas dividem-se com o BOT fechado; aberto, os tipos vão logo por baixo dele e só essa coluna cresce
   const comTipos = l => l.flatMap(e => e.id === 'bot' ? [e, ...F] : [e])
-  const tabela = l => '<table class="placar"><thead><tr><th>Estratégia</th><th>Entradas</th><th>TP1</th><th>TP2</th><th>TP3</th><th>Stop</th><th>Pips</th></tr></thead><tbody>' + comTipos(l).map(linha).join('') + '</tbody></table>'
-  const V = L.filter(e => !filho(e)), meio = ESTREITO.matches ? V.length : Math.ceil(V.length / 2)
+  const tabela = (l, vagas = 0) => '<table class="placar"><thead><tr><th>Estratégia</th><th>Entradas</th><th>TP1</th><th>TP2</th><th>TP3</th><th>Stop</th><th>Pips</th></tr></thead><tbody>' + comTipos(l).map(linha).join('')
+    + '<tr class="vaga" aria-hidden="true"><td colspan="7">&nbsp;</td></tr>'.repeat(vagas) + '</tbody></table>'
+  // 1/11 («metas essa secção mais pequena [...] duas setas uma lado esquerdo outra lado direito, e vamos vendo por ordem as
+  // melhores e piores»): da melhor para a pior pelos pips (as sem entradas no fim), uma linha cada, com o lugar à frente do
+  // nome e uma seta de cada lado. No cartão largo vão 10 de cada vez, 5 em cada coluna; mais estreito, 5 numa coluna só (em
+  // duas, os nomes partiam-se em três e quatro linhas); no ecrã pequeno, 10 numa lista. Fica guardada a primeira que se vê
+  // (est.placarDe) e no Mac a página mais curta leva linhas vazias, para o gráfico por cima não mudar de altura. Os tipos do
+  // BOT continuam por baixo dele
+  el.hidden = false
+  const um = UM_PAINEL.matches, duas = placarDuasCols = !um && el.clientWidth >= DUAS_COLUNAS, POR = um || duas ? 10 : 5
+  const val = e => e.n ? e.pips : -1e9, V = L.filter(e => !filho(e)).sort((a, b) => val(b) - val(a))
+  const de = est.placarDe = Math.max(0, Math.floor(Math.min(est.placarDe || 0, V.length - 1) / POR) * POR)
+  const P = V.slice(de, de + POR), pos = new Map(V.map((e, i) => [e.id, i + 1]))
+  const meio = ESTREITO.matches || !um && !duas ? P.length : Math.min(5, P.length), esq = P.slice(0, meio)
+  const seta = (d, ok) => '<button type="button" class="pagSeta" data-d="' + d * POR + '"' + (ok ? '' : ' disabled') + ' aria-label="' + (d < 0 ? 'Para as melhores' : 'Para as piores') + '" title="' + (d < 0 ? 'Para as melhores' : 'Para as piores') + '">'
+    + '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="' + (d < 0 ? 'M6.2 1.8 3 5l3.2 3.2' : 'M3.8 1.8 7 5 3.8 8.2') + '"/></svg></button>'
   // 27/10: o BOT conta como saiu no Telegram (a regra, sem limite de horas); as outras medem-se nas velas, até 24 h cada.
   // 29/10 («estas estratégias são por dia ou desde sempre?»): diz que é tudo somado e que as 24 h são de cada entrada
-  el.innerHTML = '<div class="tit"><span>Estratégias</span><span>' + desdeTit(L) + '<span class="legDecorrer">' + RELOGIO + 'a decorrer</span></span></div>'
-    + '<div class="placarDuas">' + tabela(V.slice(0, meio)) + (meio < V.length ? tabela(V.slice(meio)) : '') + '</div>'
-  el.hidden = false
+  el.innerHTML = '<div class="tit"><span>Estratégias<span class="pagTxt">' + (de + 1) + ' a ' + (de + P.length) + ' de ' + V.length + '<span class="pagOrdem">, da melhor para a pior</span></span></span><span>' + desdeTit(L) + '<span class="legDecorrer">' + RELOGIO + 'a decorrer</span></span></div>'
+    + '<div class="placarPag">' + seta(-1, de > 0) + '<div class="placarDuas' + (duas ? '' : ' uma') + '">' + tabela(esq, um ? 0 : Math.max(0, 5 - esq.length)) + (meio < P.length ? tabela(P.slice(meio)) : '') + '</div>'
+    + seta(1, de + POR < V.length) + '</div>'
 }
 // 25/10 («tenta meter isto de outra forma»): as entradas a decorrer com um relógio pequeno e o número, em vez de «a decorrer +2»
 const RELOGIO = '<svg class="relogio" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="4"/><path d="M5 3v2.2l1.4 1"/></svg>'
 const setaGrupo = aberto => '<svg class="seta" viewBox="0 0 10 10" aria-hidden="true"><path d="' + (aberto ? 'M2 6.5 5 3.5 8 6.5' : 'M2 3.5 5 6.5 8 3.5') + '"/></svg>'
 // carregar na linha do BOT (ou na setinha) abre e fecha os tipos, sem desenhar a tabela outra vez
 $('estrTP').addEventListener('click', e => {
+  // 1/11: as setas andam uma página (5 ou 10) para as melhores ou para as piores
+  const s = e.target.closest('.pagSeta')
+  if (s) { est.placarDe = (est.placarDe || 0) + +s.dataset.d; guardar(); if (ultimoPlacar?.length) placarTP(ultimoPlacar); return }
   const g = e.target.closest('tr.grupo')
   if (!g) return
   est.botAberto = !est.botAberto; guardar()

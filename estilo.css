@@ -448,6 +448,31 @@ body { background:var(--textura), linear-gradient(180deg, #121720 0%, #0e121a 10
 .estrTP .placarDuas { gap:0 }
 .estrTP .placarDuas .placar + .placar { border-left:1px solid #3d434a; padding-left:16px; margin-left:16px; width:calc(100% - 16px) }
 .estrTP .placarDuas .placar:first-child { width:calc(100% - 16px) }
+/* 1/11 («metas essa secção mais pequena [...] duas setas uma lado esquerdo outra lado direito»): 5 ou 10 de cada vez, da melhor
+   para a pior, com o lugar de cada uma à frente do nome e uma seta de cada lado */
+.estrTP .placarPag { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:12px }
+.estrTP .pagSeta { width:30px; height:30px; display:grid; place-items:center; padding:0; border:1px solid var(--borda); border-radius:7px; background:transparent; color:var(--suave); cursor:pointer }
+.estrTP .pagSeta svg { width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round }
+@media (hover: hover) { .estrTP .pagSeta:not(:disabled):hover { color:var(--texto); border-color:var(--suave) } }
+.estrTP .pagSeta:disabled { opacity:.3; cursor:default }
+.estrTP .placar .pos { display:inline-block; min-width:20px; color:var(--fraco); font-variant-numeric:tabular-nums }
+.estrTP .tit .pagTxt { text-transform:none; letter-spacing:0; color:var(--fraco); margin-left:10px }
+.estrTP .placarDuas.uma { grid-template-columns:minmax(0,1fr) }
+.estrTP .placarDuas.uma .placar:first-child { width:100% }
+/* no Mac, uma linha por estratégia: o cinzento do que cada uma junta vai à frente do nome (como a 25/10, «para que caiba na
+   mesma linha») e o que não couber acaba em «…», com o nome inteiro na dica. Os números com a mesma largura nas duas
+   tabelas; as linhas vazias da última página (app.js) seguram a altura */
+@media (min-width: 1001px) and (min-height: 521px) {
+  .estrTP .placarPag .placar { table-layout:fixed }
+  .estrTP .placarPag .placar th:nth-child(2) { width:66px }
+  .estrTP .placarPag .placar th:nth-child(n+3) { width:46px }
+  .estrTP .placarPag .placar th:last-child { width:60px }
+  .estrTP .placarPag .placarDuas .placar td:first-child { white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .estrTP .placarPag .placar .partes { display:inline; margin-left:6px; white-space:nowrap }
+  .estrTP .placar tr.vaga td { border-top-color:transparent }
+  /* com o cartão estreito, o título fica numa linha sem o «da melhor para a pior» (os números à frente dos nomes já o dizem) */
+  @container (max-width: 1000px) { .estrTP .pagOrdem { display:none } }
+}
 
 /* 24/10 («vê como é o TradingView na app mobile»): no telemóvel é como a app deles. Sem barra da marca; o gráfico de ponta
    a ponta com uma barra fina de botões em cima (tempo, camadas, estratégia) que abrem uma folha de baixo; a legenda por cima
@@ -520,6 +545,10 @@ body { background:var(--textura), linear-gradient(180deg, #121720 0%, #0e121a 10
 }
 @media (max-width: 760px) {
   .estrTP .placar th:nth-child(4), .estrTP .placar td:nth-child(4) { display:none }
+  /* 1/11: no telemóvel as setas vão por baixo, uma de cada lado, para a tabela ficar com a largura toda */
+  .estrTP .placarPag { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 0 }
+  .estrTP .placarPag .placarDuas { order:-1; flex:1 1 100%; min-width:0 }
+  .estrTP .pagSeta { width:44px; height:36px }
   .estrTP .tit span + span { display:none }
   .estrTP .placarDuas .placar th:nth-child(2), .estrTP .placarDuas .placar td:nth-child(2) { width:70px }
 }
