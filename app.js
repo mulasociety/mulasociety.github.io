@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=5c5d8d1e5e'
+import { criarGrafico, numerosAviso } from './grafico.js?v=35867d7e18'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1347,9 +1347,9 @@ function placarTP(L) {
   // petróleo, depois de um stop ou de um TP2) saem da tabela, porque eram as mesmas entradas contadas outra vez
   const naLista = e => !/^bot/.test(e.id) || JUNTAS.bot.includes(e.id)
   // 1/11 («a que for da estratégia do SV3 mete SV3»): as do SV3 levam «SV3» à frente, a dourado como o ZIMBA FX: o próprio
-  // SV3, o INCRÍVEL (o SV3 e o pico juntos) e a venda depois do pico (o ponto 12 do guia do SV3, com o estocástico dele). O
-  // teto não: não está no guia e só avisa quando não há SV3 nem pico
-  const DO_SV3 = ['bot-sv3', 'bot-incrivel', 'bot-pico']
+  // SV3 e a venda depois do pico (o ponto 12 do guia do SV3, com o estocástico dele). O INCRÍVEL não («o incrível é minha,
+  // não é do SV3»), nem o teto (não está no guia e só avisa quando não há SV3 nem pico)
+  const DO_SV3 = ['bot-sv3', 'bot-pico']
   const nomeTxt = e => {
     if (!/^bot-/.test(e.id)) return e.nome
     const n = e.nome.replace(/^BOT:?\s*/, '').replace(/^./, c => c.toUpperCase())
