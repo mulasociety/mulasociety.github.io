@@ -476,6 +476,16 @@ body { background:var(--textura), linear-gradient(180deg, #121720 0%, #0e121a 10
   /* com o cartão estreito, o título fica numa linha sem o «da melhor para a pior» (os números à frente dos nomes já o dizem) */
   @container (max-width: 1000px) { .estrTP .pagOrdem { display:none } }
 }
+/* 1/11 («vê aí cenas que dão para melhorar o aspecto de cada estratégia»): por baixo dos pips, uma risca fina encostada à
+   direita como os números, do tamanho do resultado ao pé do maior (o sinal fica no número: o verde e o rosa desta paleta
+   confundem-se a quem não distingue o verde do vermelho). Com menos de 5 entradas as percentagens a cinzento; sem entradas, a
+   linha apagada; no Mac a linha acende-se um pouco debaixo do rato */
+.estrTP .placar .pv { position:relative; display:inline-block }
+.estrTP .placar .barra { position:absolute; right:0; bottom:-3px; width:calc(46px * var(--v)); height:2px; border-radius:1px 0 0 1px; background:currentColor; opacity:.55; pointer-events:none }
+.estrTP .placar tr.poucas .pct { color:var(--fraco) }
+.estrTP .placar tr.nenhuma td { opacity:.5 }
+@media (hover: hover) { .estrTP .placar tbody tr:not(.vaga):hover td { background:rgba(128,128,128,.07) } }
+@media (max-width: 760px) { .estrTP .placar .barra { bottom:-5px; width:calc(58px * var(--v)) } }
 
 /* 24/10 («vê como é o TradingView na app mobile»): no telemóvel é como a app deles. Sem barra da marca; o gráfico de ponta
    a ponta com uma barra fina de botões em cima (tempo, camadas, estratégia) que abrem uma folha de baixo; a legenda por cima

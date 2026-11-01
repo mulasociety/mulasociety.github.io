@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=137d5e10ea'
+import { criarGrafico, numerosAviso } from './grafico.js?v=de3b8a588f'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1371,7 +1371,8 @@ function placarTP(L) {
   if (!el || !L?.length) return
   ultimoPlacar = L
   const pct = (k, n) => n ? Math.round(100 * k / n) + '%' : '-'
-  const pips = x => { const d = Math.round(Math.abs(x) * 10) / 10; return (x < 0 && d ? '-' : '+') + fmt(d, d % 1 ? 1 : 0) }
+  // 1/11 («vê aí cenas que dão para melhorar o aspecto de cada estratégia»): os pips sempre com uma casa, para a coluna alinhar
+  const pips = x => { const d = Math.round(Math.abs(x) * 10) / 10; return (x < 0 && d ? '-' : '+') + fmt(d, 1) }
   const cor = x => x >= 0.5 ? ' sobe' : x <= -0.5 ? ' desce' : ''
   // 24/10 («preciso que o gráfico fique maior em termos verticais»): a tabela em duas colunas lado a lado, para ocupar metade
   // da altura; a descrição de cada uma passa ao passar o rato.
@@ -1389,13 +1390,20 @@ function placarTP(L) {
     const n = e.nome.replace(/^BOT:?\s*/, '').replace(/^./, c => c.toUpperCase())
     return DO_SV3.includes(e.id) && !/^SV3\b/.test(n) ? 'SV3: ' + n : n
   }
-  const linha = e => '<tr title="' + esc([nomeTxt(e) + (e.partes ? ' (' + e.partes + ')' : ''), e.autor].filter(Boolean).join(' · ')) + '"><td>'
+  // 1/11 («melhorar o aspecto de cada estratégia»): por baixo dos pips, uma risca encostada à direita como os números, do
+  // tamanho do resultado ao pé do maior de todas (não só da página); nas muito pequenas não vai. Com menos de 5 entradas as
+  // percentagens vão a cinzento e a dica diz que ainda é cedo (1 entrada dá 100% e não diz nada); sem entradas, a linha fica
+  // apagada
+  const barra = e => { const v = e.n ? Math.abs(e.pips) / MAIOR : 0
+    return v >= 0.04 ? '<i class="barra" style="--v:' + v.toFixed(3) + '" aria-hidden="true"></i>' : '' }
+  const cedo = e => e.n && e.n < 5 ? 'só ' + e.n + (e.n > 1 ? ' entradas' : ' entrada') + ', ainda é cedo para tirar conclusões' : ''
+  const linha = e => '<tr' + (!e.n ? ' class="nenhuma"' : e.n < 5 ? ' class="poucas"' : '') + ' title="' + esc([nomeTxt(e) + (e.partes ? ' (' + e.partes + ')' : ''), e.autor, cedo(e)].filter(Boolean).join(' · ')) + '"><td>'
     + '<span class="pos">' + pos.get(e.id) + '</span><b>' + esc(nomeTxt(e)).replace(/^ZIMBA FX/, '<span class="ouro laranja">ZIMBA FX</span>')
       .replace(/^SV3\b/, '<span class="ouro">SV3</span>') + '</b>'
     + (e.partes ? ' <span class="partes">' + esc(e.partes) + '</span>' : '') + '</td>'
     + '<td class="num">' + (e.abertas ? '<span class="decorrer" title="' + e.abertas + (e.abertas > 1 ? ' entradas ainda a decorrer' : ' entrada ainda a decorrer') + '">' + RELOGIO + e.abertas + '</span>' : '') + e.n + '</td>'
-    + e.tp.map(k => '<td class="num">' + pct(k, e.n) + '</td>').join('') + '<td class="num">' + pct(e.stop, e.n) + '</td>'
-    + '<td class="num' + cor(e.pips) + '">' + (e.n ? pips(e.pips) : '-') + '</td></tr>'
+    + e.tp.map(k => '<td class="num pct">' + pct(k, e.n) + '</td>').join('') + '<td class="num pct">' + pct(e.stop, e.n) + '</td>'
+    + '<td class="num' + cor(e.pips) + '">' + (e.n ? '<span class="pv">' + pips(e.pips) + barra(e) + '</span>' : '-') + '</td></tr>'
   const tabela = (l, vagas = 0) => '<table class="placar"><thead><tr><th>Estratégia</th><th>Entradas</th><th>TP1</th><th>TP2</th><th>TP3</th><th>Stop</th><th>Pips</th></tr></thead><tbody>' + l.map(linha).join('')
     + '<tr class="vaga" aria-hidden="true"><td colspan="7">&nbsp;</td></tr>'.repeat(vagas) + '</tbody></table>'
   // 1/11 («metas essa secção mais pequena [...] duas setas uma lado esquerdo outra lado direito, e vamos vendo por ordem as
@@ -1406,6 +1414,7 @@ function placarTP(L) {
   el.hidden = false
   const um = UM_PAINEL.matches, duas = placarDuasCols = !um && el.clientWidth >= DUAS_COLUNAS, POR = um || duas ? 10 : 5
   const val = e => e.n ? e.pips : -1e9, V = L.filter(naLista).sort((a, b) => val(b) - val(a))
+  const MAIOR = Math.max(1, ...V.filter(e => e.n).map(e => Math.abs(e.pips)))
   const de = est.placarDe = Math.max(0, Math.floor(Math.min(est.placarDe || 0, V.length - 1) / POR) * POR)
   const P = V.slice(de, de + POR), pos = new Map(V.map((e, i) => [e.id, i + 1]))
   const meio = ESTREITO.matches || !um && !duas ? P.length : Math.min(5, P.length), esq = P.slice(0, meio)
