@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=78c11362bb'
+import { criarGrafico, numerosAviso } from './grafico.js?v=682a0aa031'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1347,9 +1347,18 @@ function placarTP(L) {
   // teto, os de JUNTAS.bot) entram na lista como as outras, pelos pips, com o nome sem «BOT». Os cortes (com e sem o dólar e o
   // petróleo, depois de um stop ou de um TP2) saem da tabela, porque eram as mesmas entradas contadas outra vez
   const naLista = e => !/^bot/.test(e.id) || JUNTAS.bot.includes(e.id)
-  const nomeTxt = e => /^bot-/.test(e.id) ? e.nome.replace(/^BOT:?\s*/, '').replace(/^./, c => c.toUpperCase()) : e.nome
+  // 1/11 («a que for da estratégia do SV3 mete SV3»): as do SV3 levam «SV3» à frente, a dourado como o ZIMBA FX: o próprio
+  // SV3, o INCRÍVEL (o SV3 e o pico juntos) e a venda depois do pico (o ponto 12 do guia do SV3, com o estocástico dele). O
+  // teto não: não está no guia e só avisa quando não há SV3 nem pico
+  const DO_SV3 = ['bot-sv3', 'bot-incrivel', 'bot-pico']
+  const nomeTxt = e => {
+    if (!/^bot-/.test(e.id)) return e.nome
+    const n = e.nome.replace(/^BOT:?\s*/, '').replace(/^./, c => c.toUpperCase())
+    return DO_SV3.includes(e.id) && !/^SV3\b/.test(n) ? 'SV3: ' + n : n
+  }
   const linha = e => '<tr title="' + esc([nomeTxt(e) + (e.partes ? ' (' + e.partes + ')' : ''), e.autor].filter(Boolean).join(' · ')) + '"><td>'
-    + '<span class="pos">' + pos.get(e.id) + '</span><b>' + esc(nomeTxt(e)).replace(/^ZIMBA FX/, '<span class="ouro laranja">ZIMBA FX</span>') + '</b>'
+    + '<span class="pos">' + pos.get(e.id) + '</span><b>' + esc(nomeTxt(e)).replace(/^ZIMBA FX/, '<span class="ouro laranja">ZIMBA FX</span>')
+      .replace(/^SV3\b/, '<span class="ouro">SV3</span>') + '</b>'
     + (e.partes ? ' <span class="partes">' + esc(e.partes) + '</span>' : '') + '</td>'
     + '<td class="num">' + (e.abertas ? '<span class="decorrer" title="' + e.abertas + (e.abertas > 1 ? ' entradas ainda a decorrer' : ' entrada ainda a decorrer') + '">' + RELOGIO + e.abertas + '</span>' : '') + e.n + '</td>'
     + e.tp.map(k => '<td class="num">' + pct(k, e.n) + '</td>').join('') + '<td class="num">' + pct(e.stop, e.n) + '</td>'
