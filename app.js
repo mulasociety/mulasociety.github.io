@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=de3b8a588f'
+import { criarGrafico, numerosAviso } from './grafico.js?v=cb00539e2e'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1136,6 +1136,14 @@ function desenharProb() {
   for (const f of porT) { let u = null; for (const g of porFim) { if (g.tf < f.t) u = g; else break } antes.set(f, u) }
   const comE = e.L.some(f => f.E != null), comV1 = e.L.some(f => f.v1 != null), redondo = f => Math.abs(f.E - Math.round(f.E / 10) * 10) <= 1
   const diaMes = f => +diaLxDe(f.t * 1000).slice(8)
+  const mediana = v => { const s = [...v].sort((p, q) => p - q), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2 }
+  // 1/11 («até mais ou menos quantos pips vão»): até onde o preço foi a favor antes de o aviso fechar, em pips (no ouro são os
+  // $, como nas estratégias e na faturação). Os do TP2 foram até ele, que foi onde fecharam; os outros pelo melhor das velas de
+  // 15 min inteiras antes da vela do fim (melhor, do servidor), e pelo menos até ao TP1 se lhe tocaram. Por linha, o do meio
+  const comM = e.L.some(f => f.melhor != null), tp2De = f => R_FAT.tp2 * f.R
+  const ate = f => ganhou(f) ? tp2De(f) : f.melhor == null ? null : Math.min(Math.max(f.melhor, f.hits?.[0] != null ? f.R : 0), tp2De(f))
+  const vaoAte = L => { const v = L.map(ate).filter(x => x != null); return comM && v.length ? mediana(v) : null }
+  const pipsP = x => fmt(x, 1) + NB + 'pips', tp2Med = L => L.length ? mediana(L.map(tp2De)) : null
   // 1/11 («n percebo nada do que está aqui»): as mesmas contas por palavras. Em cima, quantos chegam ao TP2 em geral e, de cada
   // grupo, numa frase, a linha que mais muda isso; nas tabelas a cor diz se a linha muda o acerto (já não diz se dava lucro).
   // Cada linha: o nome na tabela, o que diz a frase depois de «Quando» e a conta
@@ -1171,33 +1179,34 @@ function desenharProb() {
   }
   const afasta = o => Math.abs(o.m.d) >= 10, certo = o => afasta(o) && Math.abs(o.m.z) >= 2
   const corP = o => certo(o) ? (o.m.d > 0 ? ' sobe' : ' desce') : ''
-  const GR = GRUPOS.map(([g, nada, L]) => [g, nada, L.filter(Boolean).map(([rot, quando, f]) => { const x = contas(e.L.filter(f)); return { rot, quando, x, m: muda(x) } }).filter(o => o.x.n)])
-  const linhaP = o => '<tr><td>' + o.rot + '</td><td class="num">' + deN(o.x) + '</td><td class="num' + corP(o) + '">' + pct(o.x) + '</td></tr>'
+  const GR = GRUPOS.map(([g, nada, L]) => [g, nada, L.filter(Boolean).map(([rot, quando, f]) => { const F = e.L.filter(f), x = contas(F); return { rot, quando, x, m: muda(x), va: vaoAte(F), t2: tp2Med(F) } }).filter(o => o.x.n)])
+  const linhaP = o => '<tr><td>' + o.rot + '</td><td class="num">' + deN(o.x) + '</td><td class="num' + corP(o) + '">' + pct(o.x) + '</td>' + (comM ? '<td class="num">' + (o.va == null ? '' : pipsP(o.va)) + '</td>' : '') + '</tr>'
   // 1/11: cada grupo na sua tabela, lado a lado quando há largura (com a aba só para ela, uma tabela ficava larga demais)
-  const corpoP = GR.map(([g, , L]) => L.length ? '<table class="fat-tipos prob-pouca"><thead><tr><th scope="col">' + g + '</th><th scope="col">Chegaram ao TP2</th><th scope="col">%</th></tr></thead><tbody>' + L.map(linhaP).join('') + '</tbody></table>' : '').join('')
+  const corpoP = GR.map(([g, , L]) => L.length ? '<table class="fat-tipos prob-pouca"><thead><tr><th scope="col">' + g + '</th><th scope="col">Chegaram ao TP2</th><th scope="col">%</th>' + (comM ? '<th scope="col">Vão até</th>' : '') + '</tr></thead><tbody>' + L.map(linhaP).join('') + '</tbody></table>' : '').join('')
   // de cada grupo, a linha que mais se afasta da sorte, numa frase; se nenhuma fica a 10 pontos do geral, diz que nada mudou
   const chegaram = w => w === 0 ? 'nenhum chegou' : w === 1 ? '1 chegou' : w + ' chegaram'
   const frase = o => {
     const c = corP(o).trim(), b = t => '<b' + (c ? ' class="' + c + '"' : '') + '>' + t + '</b>'
     return 'Quando ' + o.quando + ', ' + (o.x.w ? (o.m.d < 0 ? 'só ' : '') + b(deN(o.x)) + (o.x.w === 1 ? ' chegou' : ' chegaram') : b('nenhum dos ' + o.x.n) + ' chegou')
       + ' ao TP2 (' + pct(o.x) + ').' + (certo(o) ? '' : ' Ainda pode ser sorte.')
+      + (o.va == null ? '' : ' ' + (o.x.n === 1 ? 'Foi até ' : 'Costumam ir até uns ') + pipsP(o.va) + ' a favor, com o TP2 a ' + (o.x.n === 1 ? '' : 'uns ') + fmt(o.t2, 1) + '.')
   }
   const tira = GR.filter(([, , L]) => L.length).map(([, nada, L]) => { const o = L.filter(afasta).sort((p, q) => Math.abs(q.m.z) - Math.abs(p.m.z))[0]; return o ? frase(o) : nada })
   // quanto tempo demoram: o do meio dos TP2 e o dos stops, e os stops logo nos primeiros 15 min
-  const mediana = v => { const s = [...v].sort((p, q) => p - q), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2 }
   const mins = L => { const r = Math.round(mediana(L.map(f => Math.max(0, f.tf - f.t) / 60))); return r >= 60 ? Math.floor(r / 60) + NB + 'h' + (r % 60 ? ' ' + r % 60 + NB + 'min' : '') : r + NB + 'min' }
   const G = e.L.filter(ganhou), S = e.L.filter(f => !ganhou(f)), cedo = S.filter(f => f.tf - f.t <= 900).length
   const tG = G.length ? 'o TP2 ' + (G.length > 1 ? 'costuma chegar em cerca de ' : 'chegou em ') + mins(G) : ''
   const tS = S.length ? 'o stop ' + (S.length > 1 ? (tG ? 'em cerca de ' : 'costuma bater em cerca de ') : 'bateu em ') + mins(S) : ''
   const tC = cedo && S.length > 1 ? ' ' + cedo + ' dos ' + S.length + ' stops ' + (cedo === 1 ? 'bateu' : 'bateram') + ' logo nos primeiros 15' + NB + 'min.' : ''
   if (tG || tS) tira.push('Quanto tempo demoram: ' + [tG, tS].filter(Boolean).join(' e ') + '.' + tC)
-  const txtP = tudo.n > 1 ? 'Dos ' + tudo.n + ' avisos que já fecharam, ' + chegaram(tudo.w) + ' ao TP2: ' + pct(tudo) + '. Cada linha em baixo faz a mesma conta, mas só com os avisos em que aconteceu aquela coisa. Se der muito diferente de ' + pct(tudo) + ', essa coisa faz diferença.'
+  const vaT = vaoAte(e.L), txtVa = vaT == null ? '' : ' Costumam ir até uns ' + pipsP(vaT) + ' a favor, com o TP2 a uns ' + fmt(tp2Med(e.L), 1) + '.'
+  const txtP = tudo.n > 1 ? 'Dos ' + tudo.n + ' avisos que já fecharam, ' + chegaram(tudo.w) + ' ao TP2: ' + pct(tudo) + '.' + txtVa + ' Cada linha em baixo faz a mesma conta, mas só com os avisos em que aconteceu aquela coisa. Se der muito diferente de ' + pct(tudo) + ', essa coisa faz diferença.'
     : tudo.n ? 'Ainda só fechou um aviso desta estratégia.' : 'Nenhum aviso desta estratégia fechou ainda.'
   const pouca = '<section class="fat-cartao" aria-labelledby="probPoucaTit"><div class="fat-dia-cab"><div><div class="lc-rot">' + esc(e.nome) + '</div><h2 class="fat-dia-nome" id="probPoucaTit">O que pouca gente conta</h2></div></div>'
     + '<p class="fat-dia-txt">' + txtP + '</p>'
     + (tudo.n > 1 ? '<div class="prob-tira"><h3 class="lc-rot">O que se tira daqui</h3><ul>' + tira.map(t => '<li>' + t + '</li>').join('') + '</ul></div>' : '')
     + (corpoP ? '<div class="prob-grupos">' + corpoP + '</div>'
-      + '<p class="fat-nota">Verde: chega ao TP2 mais vezes do que os outros avisos. Rosa: menos vezes. Só se pinta quando a diferença já é grande demais para ser sorte; sem cor, é quase igual ou ainda pode ser sorte. Preço redondo é um acabado em 0, como 3' + NB + '890, a menos de 1' + NB + '$. A 1.ª vela de 15' + NB + 'min é a primeira inteira depois do aviso, e quase no stop é ter feito 3/4 do caminho até ele. O dia e a lua são os de Lisboa.</p>' : '')
+      + '<p class="fat-nota">Verde: chega ao TP2 mais vezes do que os outros avisos. Rosa: menos vezes. Só se pinta quando a diferença já é grande demais para ser sorte; sem cor, é quase igual ou ainda pode ser sorte. Preço redondo é um acabado em 0, como 3' + NB + '890, a menos de 1' + NB + '$. A 1.ª vela de 15' + NB + 'min é a primeira inteira depois do aviso, e quase no stop é ter feito 3/4 do caminho até ele. O dia e a lua são os de Lisboa.' + (comM ? ' «Vão até» é até onde o preço foi a favor antes de o aviso fechar, no aviso do meio: metade foi mais longe e metade menos. Os que chegaram ao TP2 contam até ele; os outros contam pelas velas de 15' + NB + 'min inteiras antes da vela em que fecharam.' : '') + '</p>' : '')
     + '</section>'
 
   // ao lado, as superstições do ouro: primeiro as verdades, depois as meias e no fim os mitos
