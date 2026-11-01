@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=8bff4d20ba'
+import { criarGrafico, numerosAviso } from './grafico.js?v=78c11362bb'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1326,11 +1326,12 @@ UM_PAINEL.addEventListener('change', () => { if (ultimoPlacar?.length) placarTP(
 new ResizeObserver(() => {
   if (ultimoPlacar?.length && !UM_PAINEL.matches && ($('estrTP').clientWidth >= DUAS_COLUNAS) !== placarDuasCols) placarTP(ultimoPlacar)
 }).observe($('estrTP'))
-// 31/10 («a partir de dia 1», uma de cada vez): o título diz desde quando conta o BOT e desde quando contam as outras
+// 31/10 («a partir de dia 1», uma de cada vez): o título diz desde quando contam os avisos do bot e desde quando contam as
+// outras. 1/11 («esquece isso do BOT»): sem a linha BOT na tabela, diz «os do bot» (o SV3, o pico, o INCRÍVEL e o teto)
 function desdeTit(L) {
-  const b = L.find(e => e.id === 'bot')?.desde, o = L.find(e => !/^bot/.test(e.id))?.desde
-  return b && o && b !== o ? 'tudo somado · o BOT desde ' + diaCurtoLx(b) + ' (antes de 21/10, refeito pela regra) · as outras desde ' + diaCurtoLx(o) + ', cada entrada até 24 h'
-    : 'tudo somado desde ' + diaCurtoLx(b || o) + ' · o BOT como no Telegram (antes de 21/10, refeito pela regra); nas outras, cada entrada até 24 h'
+  const b = L.find(e => e.id === 'bot')?.desde, o = L.find(e => !/^bot/.test(e.id))?.desde, T = 'os do bot'
+  return b && o && b !== o ? 'tudo somado · ' + T + ' desde ' + diaCurtoLx(b) + ' (antes de 21/10, refeitos pela regra) · as outras desde ' + diaCurtoLx(o) + ', cada entrada até 24 h'
+    : 'tudo somado desde ' + diaCurtoLx(b || o) + ' · ' + T + ' como no Telegram (antes de 21/10, refeitos pela regra); nas outras, cada entrada até 24 h'
 }
 function placarTP(L) {
   const el = $('estrTP')
@@ -1339,48 +1340,30 @@ function placarTP(L) {
   const pct = (k, n) => n ? Math.round(100 * k / n) + '%' : '-'
   const pips = x => { const d = Math.round(Math.abs(x) * 10) / 10; return (x < 0 && d ? '-' : '+') + fmt(d, d % 1 ? 1 : 0) }
   const cor = x => x >= 0.5 ? ' sobe' : x <= -0.5 ? ' desce' : ''
-  // 24/10 («preciso que o gráfico fique maior em termos verticais»): a tabela em duas colunas lado a lado (o BOT e os
-  // filtros à esquerda, as outras à direita), para ocupar metade da altura; a descrição de cada uma passa ao passar o rato
-  // 25/10 («faz assim para não ocupar tanto»): os avisos do bot numa linha só, «BOT», com uma setinha; ao carregar nela
-  // abrem-se por baixo os tipos (com e sem dólar e petróleo, pico, teto, INCRÍVEL e SV3). Fica como ele deixou
-  const filho = e => /^bot-/.test(e.id), F = L.filter(filho), aberto = !!est.botAberto
-  // 1/11 («são todas do SV3?? não entendo»): os tipos do BOT são as mesmas entradas dele vistas de três maneiras (pelo tipo
-  // de aviso, pelo dólar e pelo petróleo, pelo aviso de antes) e iam todos seguidos, com «BOT» à frente, como se fossem
-  // estratégias à parte. Agora cada maneira leva por cima uma linha cinzenta («As 189 por tipo de aviso», com as que ficam de
-  // fora) e os nomes vão sem «BOT»
-  const nome = e => filho(e) ? '<b>' + esc(e.nome.replace(/^BOT:?\s*/, '').replace(/^./, c => c.toUpperCase())) + '</b>'
-    : '<b>' + esc(e.nome).replace(/^BOT/, '<span class="ouro">BOT</span>').replace(/^ZIMBA FX/, '<span class="ouro laranja">ZIMBA FX</span>') + '</b>'
-  const linha = e => {
-    const grupo = e.id === 'bot' && F.length
-    return '<tr title="' + esc([e.nome + (e.partes ? ' (' + e.partes + ')' : ''), e.autor].filter(Boolean).join(' · ')) + '"' + (grupo ? ' class="grupo"' : filho(e) ? ' data-de="bot"' + (aberto ? '' : ' hidden') : '') + '><td>'
-      + (pos.has(e.id) ? '<span class="pos">' + pos.get(e.id) + '</span>' : filho(e) ? '<span class="pos"></span>' : '') + (grupo ? '<button type="button" class="abreGrupo" aria-expanded="' + aberto + '">' + nome(e) + setaGrupo(aberto) + '</button>' : nome(e))
-      + (e.partes ? ' <span class="partes">' + esc(e.partes) + '</span>' : '') + '</td>'
-      + '<td class="num">' + (e.abertas ? '<span class="decorrer" title="' + e.abertas + (e.abertas > 1 ? ' entradas ainda a decorrer' : ' entrada ainda a decorrer') + '">' + RELOGIO + e.abertas + '</span>' : '') + e.n + '</td>'
-      + e.tp.map(k => '<td class="num">' + pct(k, e.n) + '</td>').join('') + '<td class="num">' + pct(e.stop, e.n) + '</td>'
-      + '<td class="num' + cor(e.pips) + '">' + (e.n ? pips(e.pips) : '-') + '</td></tr>'
-  }
-  const MANEIRAS = [['por tipo de aviso', ['bot-sv3', 'bot-pico', 'bot-incrivel', 'bot-teto']],
-    ['pelo dólar e pelo petróleo', ['bot-conf', 'bot-semconf'], k => k + ' sem os dados deles'],
-    ['pelo aviso de antes', ['bot-depois-stop', 'bot-depois-tp2'], k => k + ' sem um aviso acabado antes']]
-  const porId = new Map(F.map(e => [e.id, e])), soltos = F.filter(e => !MANEIRAS.some(([, ids]) => ids.includes(e.id)))
-  const maneira = txt => '<tr class="maneira" data-de="bot"' + (aberto ? '' : ' hidden') + '><td colspan="7">' + esc(txt) + '</td></tr>'
-  const tiposBot = b => MANEIRAS.map(([txt, ids, falta]) => {
-    const l = ids.map(i => porId.get(i)).filter(Boolean), k = b.n - l.reduce((s, e) => s + e.n, 0)
-    return l.length ? maneira('As ' + b.n + ' ' + txt + (k > 0 && falta ? ' · ' + falta(k) : '')) + l.map(linha).join('') : ''
-  }).join('') + soltos.map(linha).join('')
-  // as duas colunas dividem-se com o BOT fechado; aberto, os tipos vão logo por baixo dele e só essa coluna cresce
-  const linhas = l => l.map(e => linha(e) + (e.id === 'bot' && F.length ? tiposBot(e) : '')).join('')
-  const tabela = (l, vagas = 0) => '<table class="placar"><thead><tr><th>Estratégia</th><th>Entradas</th><th>TP1</th><th>TP2</th><th>TP3</th><th>Stop</th><th>Pips</th></tr></thead><tbody>' + linhas(l)
+  // 24/10 («preciso que o gráfico fique maior em termos verticais»): a tabela em duas colunas lado a lado, para ocupar metade
+  // da altura; a descrição de cada uma passa ao passar o rato.
+  // De 25/10 a 1/11 os avisos do bot iam numa linha «BOT» que se abria com uma setinha. 1/11 («mete as outras sem ser preciso
+  // abrir o bot sabes? esquece isso do BOT»): sem essa linha nem a setinha; os quatro tipos de aviso (SV3, pico, INCRÍVEL e
+  // teto, os de JUNTAS.bot) entram na lista como as outras, pelos pips, com o nome sem «BOT». Os cortes (com e sem o dólar e o
+  // petróleo, depois de um stop ou de um TP2) saem da tabela, porque eram as mesmas entradas contadas outra vez
+  const naLista = e => !/^bot/.test(e.id) || JUNTAS.bot.includes(e.id)
+  const nomeTxt = e => /^bot-/.test(e.id) ? e.nome.replace(/^BOT:?\s*/, '').replace(/^./, c => c.toUpperCase()) : e.nome
+  const linha = e => '<tr title="' + esc([nomeTxt(e) + (e.partes ? ' (' + e.partes + ')' : ''), e.autor].filter(Boolean).join(' · ')) + '"><td>'
+    + '<span class="pos">' + pos.get(e.id) + '</span><b>' + esc(nomeTxt(e)).replace(/^ZIMBA FX/, '<span class="ouro laranja">ZIMBA FX</span>') + '</b>'
+    + (e.partes ? ' <span class="partes">' + esc(e.partes) + '</span>' : '') + '</td>'
+    + '<td class="num">' + (e.abertas ? '<span class="decorrer" title="' + e.abertas + (e.abertas > 1 ? ' entradas ainda a decorrer' : ' entrada ainda a decorrer') + '">' + RELOGIO + e.abertas + '</span>' : '') + e.n + '</td>'
+    + e.tp.map(k => '<td class="num">' + pct(k, e.n) + '</td>').join('') + '<td class="num">' + pct(e.stop, e.n) + '</td>'
+    + '<td class="num' + cor(e.pips) + '">' + (e.n ? pips(e.pips) : '-') + '</td></tr>'
+  const tabela = (l, vagas = 0) => '<table class="placar"><thead><tr><th>Estratégia</th><th>Entradas</th><th>TP1</th><th>TP2</th><th>TP3</th><th>Stop</th><th>Pips</th></tr></thead><tbody>' + l.map(linha).join('')
     + '<tr class="vaga" aria-hidden="true"><td colspan="7">&nbsp;</td></tr>'.repeat(vagas) + '</tbody></table>'
   // 1/11 («metas essa secção mais pequena [...] duas setas uma lado esquerdo outra lado direito, e vamos vendo por ordem as
   // melhores e piores»): da melhor para a pior pelos pips (as sem entradas no fim), uma linha cada, com o lugar à frente do
   // nome e uma seta de cada lado. No cartão largo vão 10 de cada vez, 5 em cada coluna; mais estreito, 5 numa coluna só (em
   // duas, os nomes partiam-se em três e quatro linhas); no ecrã pequeno, 10 numa lista. Fica guardada a primeira que se vê
-  // (est.placarDe) e no Mac a página mais curta leva linhas vazias, para o gráfico por cima não mudar de altura. Os tipos do
-  // BOT continuam por baixo dele
+  // (est.placarDe) e no Mac a página mais curta leva linhas vazias, para o gráfico por cima não mudar de altura
   el.hidden = false
   const um = UM_PAINEL.matches, duas = placarDuasCols = !um && el.clientWidth >= DUAS_COLUNAS, POR = um || duas ? 10 : 5
-  const val = e => e.n ? e.pips : -1e9, V = L.filter(e => !filho(e)).sort((a, b) => val(b) - val(a))
+  const val = e => e.n ? e.pips : -1e9, V = L.filter(naLista).sort((a, b) => val(b) - val(a))
   const de = est.placarDe = Math.max(0, Math.floor(Math.min(est.placarDe || 0, V.length - 1) / POR) * POR)
   const P = V.slice(de, de + POR), pos = new Map(V.map((e, i) => [e.id, i + 1]))
   const meio = ESTREITO.matches || !um && !duas ? P.length : Math.min(5, P.length), esq = P.slice(0, meio)
@@ -1395,17 +1378,10 @@ function placarTP(L) {
 // 25/10 («tenta meter isto de outra forma»): as entradas a decorrer com um relógio pequeno e o número, em vez de «a decorrer +2»
 const RELOGIO = '<svg class="relogio" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="4"/><path d="M5 3v2.2l1.4 1"/></svg>'
 const setaGrupo = aberto => '<svg class="seta" viewBox="0 0 10 10" aria-hidden="true"><path d="' + (aberto ? 'M2 6.5 5 3.5 8 6.5' : 'M2 3.5 5 6.5 8 3.5') + '"/></svg>'
-// carregar na linha do BOT (ou na setinha) abre e fecha os tipos, sem desenhar a tabela outra vez
+// 1/11: as setas andam uma página (5 ou 10) para as melhores ou para as piores
 $('estrTP').addEventListener('click', e => {
-  // 1/11: as setas andam uma página (5 ou 10) para as melhores ou para as piores
   const s = e.target.closest('.pagSeta')
-  if (s) { est.placarDe = (est.placarDe || 0) + +s.dataset.d; guardar(); if (ultimoPlacar?.length) placarTP(ultimoPlacar); return }
-  const g = e.target.closest('tr.grupo')
-  if (!g) return
-  est.botAberto = !est.botAberto; guardar()
-  const b = g.querySelector('.abreGrupo')
-  b.setAttribute('aria-expanded', est.botAberto); b.querySelector('.seta').outerHTML = setaGrupo(est.botAberto)
-  for (const r of $('estrTP').querySelectorAll('tr[data-de="bot"]')) r.hidden = !est.botAberto
+  if (s) { est.placarDe = (est.placarDe || 0) + +s.dataset.d; guardar(); if (ultimoPlacar?.length) placarTP(ultimoPlacar) }
 })
 // 31/10 (desempenho): a luz do BOT e do ZIMBA FX (24/10, «mete tipo a ouro a brilhar») era uma animação de CSS sem fim e o
 // ecrã refazia os estilos 60 vezes por segundo, também com a luz parada fora das letras: 70% do trabalho do ecrã parado.
