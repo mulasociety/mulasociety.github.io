@@ -464,14 +464,16 @@ body { background:var(--textura), linear-gradient(180deg, #121720 0%, #0e121a 10
 .estrTP .placarDuas.uma .placar:first-child { width:100% }
 /* no Mac, uma linha por estratégia: o cinzento do que cada uma junta vai à frente do nome (como a 25/10, «para que caiba na
    mesma linha») e o que não couber acaba em «…», com o nome inteiro na dica. Os números com a mesma largura nas duas
-   tabelas; as linhas vazias da última página (app.js) seguram a altura */
+   tabelas; as linhas vazias da última página (app.js) seguram a altura. 1/11: o cinzento que não cabe inteiro sai (app.js,
+   cabeNotas) e as colunas dos números estreitaram um pouco, para os nomes compridos caberem inteiros */
 @media (min-width: 1001px) and (min-height: 521px) {
   .estrTP .placarPag .placar { table-layout:fixed }
-  .estrTP .placarPag .placar th:nth-child(2) { width:66px }
-  .estrTP .placarPag .placar th:nth-child(n+3) { width:46px }
+  .estrTP .placarPag .placar th:nth-child(2) { width:60px }
+  .estrTP .placarPag .placar th:nth-child(n+3) { width:42px }
   .estrTP .placarPag .placar th:last-child { width:60px }
   .estrTP .placarPag .placarDuas .placar td:first-child { white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   .estrTP .placarPag .placar .partes { display:inline; margin-left:6px; white-space:nowrap }
+  .estrTP .placarPag .placar .partes.naoCabe { display:none }
   .estrTP .placar tr.vaga td { border-top-color:transparent }
   /* com o cartão estreito, o título fica numa linha sem o «da melhor para a pior» (os números à frente dos nomes já o dizem) */
   @container (max-width: 1000px) { .estrTP .pagOrdem { display:none } }

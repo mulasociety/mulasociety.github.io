@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=69398ede54'
+import { criarGrafico, numerosAviso } from './grafico.js?v=e0a830c1bb'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1367,8 +1367,17 @@ const UM_PAINEL = matchMedia('(max-width: 1000px), (max-height: 520px)'), DUAS_C
 let placarDuasCols = null
 UM_PAINEL.addEventListener('change', () => { if (ultimoPlacar?.length) placarTP(ultimoPlacar) })
 new ResizeObserver(() => {
-  if (ultimoPlacar?.length && !UM_PAINEL.matches && ($('estrTP').clientWidth >= DUAS_COLUNAS) !== placarDuasCols) placarTP(ultimoPlacar)
+  if (!ultimoPlacar?.length || UM_PAINEL.matches) return
+  if (($('estrTP').clientWidth >= DUAS_COLUNAS) !== placarDuasCols) placarTP(ultimoPlacar); else cabeNotas($('estrTP'))
 }).observe($('estrTP'))
+// 1/11 («vê aí»): no Mac, a frase cinzenta que não cabe inteira ao lado do nome sai (fica na dica da linha), em vez de acabar
+// a meio de uma palavra («subida de 30 …»). Primeiro mostra todas, depois mede todas e só então esconde, para medir uma vez só
+function cabeNotas(el) {
+  if (UM_PAINEL.matches) return
+  const N = [...el.querySelectorAll('.placar .partes')]
+  N.forEach(p => p.classList.remove('naoCabe'))
+  N.filter(p => { const td = p.closest('td'); return td.scrollWidth > td.clientWidth + 1 }).forEach(p => p.classList.add('naoCabe'))
+}
 // 31/10 («a partir de dia 1», uma de cada vez): o título diz desde quando contam os avisos do bot e desde quando contam as
 // outras. 1/11 («esquece isso do BOT»): sem a linha BOT na tabela, diz «os do bot» (o SV3, o pico, o INCRÍVEL e o teto)
 function desdeTit(L) {
@@ -1435,6 +1444,7 @@ function placarTP(L) {
   el.innerHTML = '<div class="tit"><span>Estratégias<span class="pagTxt">' + (de + 1) + ' a ' + (de + P.length) + ' de ' + V.length + '<span class="pagOrdem">, da melhor para a pior</span></span></span><span>' + desdeTit(L) + '<span class="legDecorrer">' + RELOGIO + 'a decorrer</span></span></div>'
     + '<div class="placarPag">' + seta(-1, de > 0) + '<div class="placarDuas' + (duas ? '' : ' uma') + '">' + tabela(esq, um ? 0 : Math.max(0, 5 - esq.length)) + (meio < P.length ? tabela(P.slice(meio)) : '') + '</div>'
     + seta(1, de + POR < V.length) + '</div>'
+  cabeNotas(el)
 }
 // 25/10 («tenta meter isto de outra forma»): as entradas a decorrer com um relógio pequeno e o número, em vez de «a decorrer +2»
 const RELOGIO = '<svg class="relogio" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="4"/><path d="M5 3v2.2l1.4 1"/></svg>'
