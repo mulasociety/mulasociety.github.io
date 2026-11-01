@@ -1006,21 +1006,24 @@ button.prob-c { cursor:pointer }
 .prob-sup-cab b { font-weight:600; text-wrap:pretty }
 .prob-ver { flex:none; font-size:12px; font-weight:600; white-space:nowrap }
 .prob-sup p { margin-top:4px; font-size:12.5px; line-height:1.45; color:var(--suave); text-wrap:pretty }
-/* 1/11 («podes fazer uma aba lá em cima com os títulos»): as partes das probabilidades em abas, presas em cima ao descer */
-#pagProb .pag-cab { margin-bottom:0; padding-bottom:4px; border-bottom:0 }
-.prob-abas { position:sticky; top:-12px; z-index:4; display:flex; gap:26px; margin:0 -18px 16px; padding:6px 18px 0; background:var(--painel); border-bottom:1px solid var(--borda); overflow-x:auto; scrollbar-width:none }
-.prob-abas::-webkit-scrollbar { display:none }
-.prob-abas > button { flex:none; padding:8px 0 10px; font:inherit; font-size:13.5px; white-space:nowrap; color:var(--suave); background:none; border:0; border-bottom:2px solid transparent; margin-bottom:-1px; cursor:pointer }
+/* 1/11 («podes fazer uma aba lá em cima com os títulos» e «melhora o aspecto disto»): as quatro partes num seletor como o dos tempos do gráfico,
+   preso em cima ao descer; as quatro do mesmo tamanho, e no telemóvel dividem a largura e os nomes passam a duas linhas */
+#pagProb .pag-cab { margin-bottom:0; padding-bottom:0; border-bottom:0 }
+.prob-barra { position:sticky; top:-12px; z-index:4; margin:0 -18px 8px; padding:12px 18px; background:var(--painel); border-bottom:1px solid transparent; transition:border-color .15s }
+.prob-barra.presa { border-bottom-color:var(--borda) }
+.prob-abas { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:2px; width:fit-content; max-width:100%; padding:3px; background:#121518; border:1px solid var(--borda); border-radius:9px }
+.prob-abas > button { padding:6px 16px; border-radius:6px; font-size:13px; line-height:1.3; text-align:center; text-wrap:balance; color:var(--suave); transition:background-color .15s, color .15s }
 .prob-abas > button:hover { color:var(--texto) }
-.prob-abas > button.on { color:var(--texto); font-weight:600; border-bottom-color:var(--areia) }
-.prob-abas > button:focus-visible { outline:2px solid var(--areia); outline-offset:-3px; border-radius:4px }
+.prob-abas > button.on { background:#262b31; color:var(--texto); box-shadow:0 1px 2px rgba(0,0,0,.35) }
+.prob-abas > button:focus-visible { outline:2px solid var(--areia); outline-offset:-2px; border-radius:6px }
 .prob-painel > .fat-baixo:first-child { margin-top:0 }
 /* sozinhas na aba: os três grupos do «O que pouca gente conta» lado a lado e as superstições em duas colunas */
 .prob-grupos { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:0 32px; align-items:start }
 .prob-grupos .prob-pouca thead th:first-child { font-size:11px; letter-spacing:.08em; text-transform:uppercase }
 #probP-sups .prob-sups { columns:2 420px; column-gap:40px }
 #probP-sups .prob-sup { break-inside:avoid }
-@media (max-width: 1000px), (max-height: 520px) { .prob-abas { margin-left:-12px; margin-right:-12px; padding-left:12px; padding-right:12px; gap:22px } }
+@media (max-width: 1000px), (max-height: 520px) { .prob-barra { margin-left:-12px; margin-right:-12px; padding-left:12px; padding-right:12px } }
+@media (max-width: 700px) { .prob-abas { gap:0; padding:2px } .prob-abas > button { padding:5px 2px; border-radius:7px; font-size:clamp(11px, 3.1vw, 12.5px); line-height:1.25 } }
 @media (pointer: coarse) { .prob-abas > button { min-height:44px } }
 @media (max-width: 700px) {
   .prob-estr select { max-width:170px }

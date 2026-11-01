@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=682a0aa031'
+import { criarGrafico, numerosAviso } from './grafico.js?v=5c5d8d1e5e'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1014,9 +1014,6 @@ try { const a = localStorage.getItem('jarvis-prob-aba'); if (ABAS_PROB.includes(
 const marcarAbaProb = () => {
   const n = $('probAbas')
   for (const b of n.querySelectorAll('[data-aba]')) { const on = b.dataset.aba === probAba; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1 }
-  // no telemóvel a barra desliza: a aba aberta fica toda à vista
-  const b = n.querySelector('.on'), a = b ? b.offsetLeft - 12 : 0, z = b ? b.offsetLeft + b.offsetWidth + 12 - n.clientWidth : 0
-  if (b && n.scrollLeft > a) n.scrollLeft = a; else if (b && n.scrollLeft < z) n.scrollLeft = z
 }
 const roProb = new ResizeObserver(es => es.forEach(e => pontas(e.target)))
 const DSEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'], DSEM_LONGO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
@@ -1261,6 +1258,8 @@ function desenharProb() {
     pag.scrollTo({ top: 0 })
   }
   marcarAbaProb()
+  // a linha por baixo do seletor só aparece quando ele fica preso em cima e o resto passa por baixo
+  new IntersectionObserver(([e]) => $('probBarra').classList.toggle('presa', !e.isIntersecting), { root: pag }).observe(pag.querySelector('.pag-cab'))
   $('probAbas').addEventListener('click', e => { const b = e.target.closest('[data-aba]'); if (b) abaProb(b.dataset.aba) })
   $('probAbas').addEventListener('keydown', e => {
     const i = ABAS_PROB.indexOf(probAba), j = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: ABAS_PROB.length - 1 }[e.key]
