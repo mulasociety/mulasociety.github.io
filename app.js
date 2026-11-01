@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=7c687356f5'
+import { criarGrafico, numerosAviso } from './grafico.js?v=e1952d96e2'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1289,7 +1289,12 @@ function placarTP(L) {
   // 25/10 («faz assim para não ocupar tanto»): os avisos do bot numa linha só, «BOT», com uma setinha; ao carregar nela
   // abrem-se por baixo os tipos (com e sem dólar e petróleo, pico, teto, INCRÍVEL e SV3). Fica como ele deixou
   const filho = e => /^bot-/.test(e.id), F = L.filter(filho), aberto = !!est.botAberto
-  const nome = e => '<b>' + esc(e.nome).replace(/^BOT/, '<span class="ouro">BOT</span>').replace(/^ZIMBA FX/, '<span class="ouro laranja">ZIMBA FX</span>') + '</b>'
+  // 1/11 («são todas do SV3?? não entendo»): os tipos do BOT são as mesmas entradas dele vistas de três maneiras (pelo tipo
+  // de aviso, pelo dólar e pelo petróleo, pelo aviso de antes) e iam todos seguidos, com «BOT» à frente, como se fossem
+  // estratégias à parte. Agora cada maneira leva por cima uma linha cinzenta («As 189 por tipo de aviso», com as que ficam de
+  // fora) e os nomes vão sem «BOT»
+  const nome = e => filho(e) ? '<b>' + esc(e.nome.replace(/^BOT:?\s*/, '').replace(/^./, c => c.toUpperCase())) + '</b>'
+    : '<b>' + esc(e.nome).replace(/^BOT/, '<span class="ouro">BOT</span>').replace(/^ZIMBA FX/, '<span class="ouro laranja">ZIMBA FX</span>') + '</b>'
   const linha = e => {
     const grupo = e.id === 'bot' && F.length
     return '<tr title="' + esc([e.nome + (e.partes ? ' (' + e.partes + ')' : ''), e.autor].filter(Boolean).join(' · ')) + '"' + (grupo ? ' class="grupo"' : filho(e) ? ' data-de="bot"' + (aberto ? '' : ' hidden') : '') + '><td>'
@@ -1299,9 +1304,18 @@ function placarTP(L) {
       + e.tp.map(k => '<td class="num">' + pct(k, e.n) + '</td>').join('') + '<td class="num">' + pct(e.stop, e.n) + '</td>'
       + '<td class="num' + cor(e.pips) + '">' + (e.n ? pips(e.pips) : '-') + '</td></tr>'
   }
+  const MANEIRAS = [['por tipo de aviso', ['bot-pico', 'bot-teto', 'bot-incrivel', 'bot-sv3']],
+    ['pelo dólar e pelo petróleo', ['bot-conf', 'bot-semconf'], k => k + ' sem os dados deles'],
+    ['pelo aviso de antes', ['bot-depois-stop', 'bot-depois-tp2'], k => k + ' sem um aviso acabado antes']]
+  const porId = new Map(F.map(e => [e.id, e])), soltos = F.filter(e => !MANEIRAS.some(([, ids]) => ids.includes(e.id)))
+  const maneira = txt => '<tr class="maneira" data-de="bot"' + (aberto ? '' : ' hidden') + '><td colspan="7">' + esc(txt) + '</td></tr>'
+  const tiposBot = b => MANEIRAS.map(([txt, ids, falta]) => {
+    const l = ids.map(i => porId.get(i)).filter(Boolean), k = b.n - l.reduce((s, e) => s + e.n, 0)
+    return l.length ? maneira('As ' + b.n + ' ' + txt + (k > 0 && falta ? ' · ' + falta(k) : '')) + l.map(linha).join('') : ''
+  }).join('') + soltos.map(linha).join('')
   // as duas colunas dividem-se com o BOT fechado; aberto, os tipos vão logo por baixo dele e só essa coluna cresce
-  const comTipos = l => l.flatMap(e => e.id === 'bot' ? [e, ...F] : [e])
-  const tabela = (l, vagas = 0) => '<table class="placar"><thead><tr><th>Estratégia</th><th>Entradas</th><th>TP1</th><th>TP2</th><th>TP3</th><th>Stop</th><th>Pips</th></tr></thead><tbody>' + comTipos(l).map(linha).join('')
+  const linhas = l => l.map(e => linha(e) + (e.id === 'bot' && F.length ? tiposBot(e) : '')).join('')
+  const tabela = (l, vagas = 0) => '<table class="placar"><thead><tr><th>Estratégia</th><th>Entradas</th><th>TP1</th><th>TP2</th><th>TP3</th><th>Stop</th><th>Pips</th></tr></thead><tbody>' + linhas(l)
     + '<tr class="vaga" aria-hidden="true"><td colspan="7">&nbsp;</td></tr>'.repeat(vagas) + '</tbody></table>'
   // 1/11 («metas essa secção mais pequena [...] duas setas uma lado esquerdo outra lado direito, e vamos vendo por ordem as
   // melhores e piores»): da melhor para a pior pelos pips (as sem entradas no fim), uma linha cada, com o lugar à frente do

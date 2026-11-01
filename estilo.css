@@ -462,6 +462,10 @@ body { background:var(--textura), linear-gradient(180deg, #121720 0%, #0e121a 10
 .estrTP .tit .pagTxt { text-transform:none; letter-spacing:0; color:var(--fraco); margin-left:10px }
 .estrTP .placarDuas.uma { grid-template-columns:minmax(0,1fr) }
 .estrTP .placarDuas.uma .placar:first-child { width:100% }
+/* 1/11 («são todas do SV3?? não entendo»): por cima de cada maneira de ver as entradas do BOT, uma linha cinzenta, alinhada
+   com os nomes dos tipos */
+.estrTP .placar tr.maneira td { text-align:left; color:var(--fraco); font-size:10.5px; padding-top:7px; padding-left:25px }
+.estrTP .placar tr.maneira + tr td { border-top-color:transparent }
 /* no Mac, uma linha por estratégia: o cinzento do que cada uma junta vai à frente do nome (como a 25/10, «para que caiba na
    mesma linha») e o que não couber acaba em «…», com o nome inteiro na dica. Os números com a mesma largura nas duas
    tabelas; as linhas vazias da última página (app.js) seguram a altura */
@@ -552,6 +556,9 @@ body { background:var(--textura), linear-gradient(180deg, #121720 0%, #0e121a 10
   .estrTP .placarPag { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 0 }
   .estrTP .placarPag .placarDuas { order:-1; flex:1 1 100%; min-width:0 }
   .estrTP .pagSeta { width:48px; height:40px }
+  .estrTP .placar tr.maneira { padding:10px 0 0 }
+  .estrTP .placar tr.maneira + tr { border-top-color:transparent }
+  .estrTP .placarDuas .placar tr.maneira td:first-child { font-size:12px; padding:0 0 0 20px }
   .estrTP .tit span + span { display:none }
   .estrTP .placarDuas .placar th:nth-child(2), .estrTP .placarDuas .placar td:nth-child(2) { width:70px }
 }
