@@ -988,6 +988,10 @@ button.prob-c { cursor:pointer }
 .prob-pouca td:nth-child(2) { color:var(--suave); white-space:nowrap }
 .prob-pouca .prob-g th { padding:16px 0 6px; font-size:11px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; text-align:left; color:var(--suave); border-bottom:1px solid var(--borda) }
 .prob-pouca tbody tr:first-child th { padding-top:6px }
+/* 1/11: com as outras estratégias. O acerto sem isso a cinzento, para comparar; a prova (✓ ou ≈) numa coluna estreita */
+.prob-juntas th:nth-child(2) { text-align:right }
+.prob-juntas td:nth-child(4) { color:var(--suave) }
+.prob-juntas th:last-child, .prob-juntas td:last-child { width:3em; text-align:center }
 .prob-sups { list-style:none; margin-top:10px }
 .prob-sup { padding:11px 0; border-top:1px solid #1d2125 }
 .prob-sup-cab { display:flex; align-items:baseline; justify-content:space-between; gap:12px; font-size:13.5px; line-height:1.4 }

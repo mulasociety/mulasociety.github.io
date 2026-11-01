@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=5f355029b7'
+import { criarGrafico, numerosAviso } from './grafico.js?v=7c687356f5'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1000,6 +1000,10 @@ const maiuscula = s => s[0].toUpperCase() + s.slice(1)
 // se desenha (null: ainda não se pediu; 0: a caminho ou falhou)
 let supers = null
 const lerSupers = () => { supers = 0; fetch('supersticoes.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : 0).then(j => { supers = j?.lista ? j : 0; if (supers && !$('pagProb').hidden) desenharProb() }).catch(() => {}) }
+// 1/11 («esta estratégia deu certo quando x aconteceu, ou seja quando esta também deu certo, quando esta validou»): as estratégias
+// contadas umas com as outras (/api/juntas, juntas.mjs no servidor). Pede-se com a página aberta, no máximo uma vez por minuto
+let juntasJ = null, juntasEm = 0
+const lerJuntas = () => { juntasEm = Date.now(); api('juntas').then(j => { if (j?.grupos) juntasJ = j; if (!$('pagProb').hidden) desenharProb() }, () => {}) }
 // a idade da lua em dias, a partir de uma lua nova conhecida (6/1/2000 às 18:14 UTC); cheia ou nova a 1 dia dela, como nas superstições
 const LUA_NOVA = Date.UTC(2000, 0, 6, 18, 14) / 1000, LUNACAO = 29.530588853 * 86400
 const luaForte = t => { const i = ((t - LUA_NOVA) % LUNACAO + LUNACAO) % LUNACAO / 86400, meio = LUNACAO / 172800; return Math.abs(i - meio) <= 1 || i <= 1 || i >= 2 * meio - 1 }
@@ -1138,13 +1142,63 @@ function desenharProb() {
     + '<ul class="prob-sups">' + ['verdade', 'meio', 'mito'].flatMap(v => supers.lista.filter(s => s.veredicto === v)).map(s => '<li class="prob-sup"><div class="prob-sup-cab"><b>' + esc(s.diz) + '</b>'
       + '<span class="prob-ver ' + VER[s.veredicto][0] + '">' + VER[s.veredicto][1] + '</span></div><p>' + esc(s.texto) + '</p></li>').join('') + '</ul></section>' : ''
 
+  // 1/11: com as outras estratégias. Contado nas entradas da tabela desde 1/10 (não só nos avisos do Telegram): o que as
+  // outras disseram nas 4 h antes de cada entrada desta e quantas chegaram ao TP2 em cada caso, com a prova de cada conta (✓
+  // aguenta-se, ≈ talvez, ver juntas.mjs). Ao lado, as que se aguentam em todas as estratégias
+  if (Date.now() - juntasEm > 60e3) lerJuntas()
+  const J = juntasJ, horasJ = J ? Math.round(J.janela / 3600) + NB + 'h' : '4' + NB + 'h'
+  const nomeJ = id => id === 'todas' ? 'Todas as estratégias' : nomeE[id] || PARTE[id] || id, artigo = id => id === 'bot' ? 'o ' : 'a '
+  const pctJ = (w, n) => n ? Math.round(100 * w / n) + '%' : '-'
+  // o que cada conta diz, numa frase: os quatro casos das outras todas, e cada uma sozinha (a favor, contra, já tinha acertado)
+  const QUANDO = { sozinha: 'nenhuma outra deu sinal', favor: 'as outras deram o mesmo lado e nenhuma o contrário', misto: 'umas deram o mesmo lado e outras o contrário', contra: 'só houve sinais do lado contrário' }
+  const quandoJ = (c, b) => b ? artigo(b) + '<b>' + esc(nomeJ(b)) + '</b> ' + { f: 'deu o mesmo lado', x: 'deu o lado contrário', a: 'já tinha chegado ao TP2 do mesmo lado' }[c] : QUANDO[c]
+  const PROVA = ['', '<span class="areia">≈<span class="sr"> talvez</span></span>', '<span class="sobe">✓<span class="sr"> aguenta-se</span></span>']
+  const gJ = J?.grupos?.[e.id]
+  let juntasH = '<p class="fat-dia-txt">' + (J ? 'Ainda não há entradas desta estratégia na tabela.' : 'A contar as estratégias umas com as outras.') + '</p>'
+  if (gJ) {
+    // cada linha: quando, quantas no TP2, o acerto com isso e sem isso, e a prova; com cor só as que têm alguma prova
+    const linhaJ = (rot, [n1, w1, v]) => {
+      const n0 = gJ.n - n1, w0 = gJ.w - w1, d = n1 && n0 ? w1 / n1 - w0 / n0 : 0, cls = v && Math.abs(d) >= 0.05 ? (d > 0 ? ' sobe' : ' desce') : ''
+      return '<tr><td>' + rot + '</td><td class="num">' + (n1 ? w1 + ' de ' + n1 : '-') + '</td><td class="num' + cls + '">' + pctJ(w1, n1) + '</td><td class="num">' + pctJ(w0, n0) + '</td><td>' + PROVA[v] + '</td></tr>'
+    }
+    const grupo = (tit, h) => h ? '<tr class="prob-g"><th colspan="5" scope="colgroup">' + tit + '</th></tr>' + h : ''
+    const CASO_ROT = { sozinha: 'Nenhuma deu sinal', favor: 'Só a favor', misto: 'A favor e contra', contra: 'Só contra' }
+    const casos = J.casos ?? ['sozinha', 'favor', 'misto', 'contra']
+    // de cada uma, as que têm mais prova e, depois, as que mais mudam o acerto (6 no máximo)
+    const dif = ([, , n1, w1]) => { const n0 = gJ.n - n1; return n1 && n0 ? Math.abs(w1 / n1 - (gJ.w - w1) / n0) : 0 }
+    const pares = q => gJ.pares.filter(p => p[1] === q).sort((p, r) => r[4] - p[4] || dif(r) - dif(p)).slice(0, 6).map(p => linhaJ(esc(nomeJ(p[0])), p.slice(2))).join('')
+    const fav = gJ.casos[casos.indexOf('favor')] || [0, 0, 0], [fn, fw, fv] = fav, f0 = gJ.n - fn
+    const VERED = [' Ainda pode ser sorte.', ' Talvez: acontece nas duas metades, mas algumas trocas de dias também dão uma diferença assim.', ' Aguenta-se: acontece nas duas metades e quase nenhuma troca de dias dá uma diferença assim.']
+    juntasH = '<p class="fat-dia-txt">' + (fn ? 'Quando ' + QUANDO.favor + ' nas ' + horasJ + ' antes, ' + fw + ' de ' + fn + (fw === 1 ? ' chegou' : ' chegaram') + ' ao TP2 (' + pctJ(fw, fn) + '); nas outras vezes, '
+      + (gJ.w - fw) + ' de ' + f0 + ' (' + pctJ(gJ.w - fw, f0) + ').' + VERED[fv] : 'Ainda não houve nenhuma entrada desta com as outras todas do mesmo lado nas ' + horasJ + ' antes.') + '</p>'
+      + '<table class="fat-tipos prob-pouca prob-juntas"><thead><tr><th scope="col">Quando</th><th scope="col">No TP2</th><th scope="col">Acerto</th><th scope="col">Sem isso</th><th scope="col">Prova</th></tr></thead><tbody>'
+      + grupo('As outras nas ' + horasJ + ' antes', casos.map((c, i) => linhaJ(CASO_ROT[c], gJ.casos[i])).join(''))
+      + grupo('Com cada uma do mesmo lado', pares('f')) + grupo('Com cada uma do lado contrário', pares('x')) + grupo('Depois de cada uma chegar ao TP2', pares('a'))
+      + '</tbody></table>'
+  }
+  const comOutras = '<section class="fat-cartao" aria-labelledby="probJuntasTit"><div class="fat-dia-cab"><div><div class="lc-rot">' + esc(e.nome) + '</div><h2 class="fat-dia-nome" id="probJuntasTit">Com as outras estratégias</h2></div></div>'
+    + juntasH + '<p class="fat-nota">Contado nas entradas da tabela das estratégias desde 1/10 (o BOT com os refeitos até 21/10), e não só nos avisos do Telegram. A favor é outra estratégia com o mesmo lado nas ' + horasJ
+    + ' antes da entrada; contra, com o lado contrário. ✓&nbsp;quer dizer que se aguenta: acontece nas duas metades das entradas (as mais antigas e as mais recentes), com pelo menos 10 entradas com isso e 10 sem, e menos de 1 em cada 20 trocas de dias (as outras estratégias postas noutros dias, às mesmas horas) dá uma diferença assim. ≈&nbsp;quer dizer talvez: nas duas metades, e menos de 1 em cada 5 trocas. Sem marca ainda pode ser sorte.</p></section>'
+  const ag = J?.aguentam || []
+  const itemJ = x => {
+    const d = x.w1 / x.n1 - x.w0 / x.n0
+    return '<li class="prob-sup"><div class="prob-sup-cab"><b>' + esc(nomeJ(x.g)) + '</b><span class="prob-ver ' + (d > 0 ? 'sobe">✓' + NB + 'Mais confiança' : 'desce">✗' + NB + 'Menos confiança') + '</span></div>'
+      + '<p>Quando ' + quandoJ(x.c, x.b) + ' nas ' + horasJ + ' antes: ' + x.w1 + ' de ' + x.n1 + ' no TP2 (' + pctJ(x.w1, x.n1) + '). Nas outras vezes, ' + x.w0 + ' de ' + x.n0 + ' (' + pctJ(x.w0, x.n0) + ').</p></li>'
+  }
+  const sorteTxt = J ? (ag.length ? 'Testei ' + J.testes + ' contas com pelo menos 10 entradas de cada lado. Aguentam-se ' + ag.length + '; só por sorte passariam umas ' + fmt(J.sorte, J.sorte % 1 ? 1 : 0) + '.'
+      + (J.sorte >= ag.length / 2 ? ' Por isso ainda pode haver aqui alguma por sorte: dá mais confiança a que aparece em mais do que uma estratégia.' : '')
+    : 'Testei ' + (J.testes || 0) + ' contas com pelo menos 10 entradas de cada lado e ainda nenhuma se aguenta: por agora, o que parece bom ainda pode ser sorte.') : 'A contar.'
+  const aguentam = '<section class="fat-cartao" aria-labelledby="probAgTit"><div class="fat-dia-cab"><div><div class="lc-rot">Todas as estratégias' + (J ? ' · ' + J.dias + ' dias de mercado desde ' + diaDe(J.desde * 1000) : '') + '</div>'
+    + '<h2 class="fat-dia-nome" id="probAgTit">O que se aguenta</h2></div></div><p class="fat-dia-txt">' + sorteTxt + '</p>'
+    + (ag.length ? '<ul class="prob-sups">' + ag.map(itemJ).join('') + '</ul>' : '') + '</section>'
+
   // a escolha da estratégia, no lugar do mês da faturação (só se refaz quando mudam as estratégias, para não fechar a lista aberta)
   const s = $('probEstr'), assinatura = ESC.map(o => o.id + o.L.length).join()
   if (s.dataset.k !== assinatura) { s.innerHTML = ESC.map(o => '<option value="' + o.id + '">' + (o.parte ? NB + NB + NB : '') + esc(o.nome) + ' (' + o.L.length + ')</option>').join(''); s.dataset.k = assinatura }
   s.value = e.id
   const rolo = $('probCorpo').querySelector('.fat-desliza'), y = rolo?.dataset.de === lista ? rolo.scrollTop : 0
   const foco = document.activeElement?.closest?.('#pagProb [data-p], #pagProb [data-e]'), qual = foco && (foco.dataset.p != null ? '[data-p="' + foco.dataset.p + '"]' : '[data-e="' + foco.dataset.e + '"]')
-  $('probCorpo').innerHTML = resumo + cal + nota + '<div class="fat-baixo">' + doSel + porEstr + '</div><div class="fat-baixo">' + pouca + sups + '</div>'
+  $('probCorpo').innerHTML = resumo + cal + nota + '<div class="fat-baixo">' + doSel + porEstr + '</div><div class="fat-baixo">' + comOutras + aguentam + '</div><div class="fat-baixo">' + pouca + sups + '</div>'
   const novo = $('probCorpo').querySelector('.fat-desliza')
   roProb.disconnect()
   if (novo) { novo.scrollTop = y; pontas(novo); roProb.observe(novo) }
