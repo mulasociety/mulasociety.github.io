@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=cb00539e2e'
+import { criarGrafico, numerosAviso } from './grafico.js?v=6ab8ac17fc'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -536,9 +536,11 @@ function marcar() {
 // 25/10 («deveria estar nesses filtros»): os avisos do bot também, por tipo, com os nomes do placar; «todos os avisos»
 // (id bot) liga os quatro tipos
 const JUNTAS = { bot: ['bot-pico', 'bot-teto', 'bot-incrivel', 'bot-sv3'] }, ZIMBA_CINCO = ['liquidez', 'choch', 'orderblock', 'wyckoff', 'elliott']
-// 1/11 («mete mesmo SV3 é esse»): o tipo das linhas e do estocástico chama-se SV3 e vem primeiro, como na tabela
-const BOT_ESTR = [{ id: 'bot', nome: 'BOT: todos os avisos' }, { id: 'bot-sv3', nome: 'BOT: SV3' }, { id: 'bot-pico', nome: 'BOT: venda depois do pico' },
-  { id: 'bot-incrivel', nome: 'BOT: INCRÍVEL' }, { id: 'bot-teto', nome: 'BOT: venda de teto' }]
+// 1/11 («mete mesmo SV3 é esse»): o tipo das linhas e do estocástico chama-se SV3 e vem primeiro, como na tabela.
+// 1/11 («atualiza tudo o que fizemos hoje no mobile»): os mesmos nomes da tabela, sem o «todos os avisos» («esquece isso do
+// BOT»); «SV3» à frente da venda depois do pico, e o INCRÍVEL e o teto sem ele («o incrível é minha, não é do SV3»)
+const BOT_ESTR = [{ id: 'bot-sv3', nome: 'SV3' }, { id: 'bot-pico', nome: 'SV3: Venda depois do pico' },
+  { id: 'bot-incrivel', nome: 'INCRÍVEL' }, { id: 'bot-teto', nome: 'Venda de teto' }]
 // 1/11 («o bot com todos os avisos é só BOT», «então junta essas né, tipo mete mesmo SV3 é esse»): a linha de todos os avisos
 // chama-se BOT e cada tipo leva à frente, a cinzento, o que é (o SV3 é só o das linhas e do estocástico). O servidor já manda
 // os nomes novos (arranque.mjs); acertam-se também aqui, porque a função do amigo só os muda quando voltar a ser publicada
@@ -562,10 +564,9 @@ function nomeTeo() {
 if (!est.juntas5) { if (est.estrVer.length === 5 && ZIMBA_CINCO.every(id => est.estrVer.includes(id))) est.estrVer = ['edney']; est.juntas5 = 1; guardar() }
 function nomeEstr() {
   const l = estrEscolhidas(), nomes = Object.fromEntries([...$('estrSel').options].filter(o => o.value).map(o => [o.value, o.text.replace(/\s*\(.*\)$/, '')]))
-  const curto = id => (nomes[id] || id).replace(/^(ZIMBA FX|BOT): /, '')
+  const curto = id => (nomes[id] || id).replace(/^(ZIMBA FX|SV3): /, '')
   if (!l.length) return ''
-  if (l.length === 4 && JUNTAS.bot.every(id => l.includes(id))) return 'BOT: todos os avisos'
-  return l.length === 1 ? nomes[l[0]] || l[0] : l.length === 2 ? (l.every(id => id.startsWith('bot-')) ? 'BOT: ' : '') + l.map(curto).join(' + ') : l.length + ' estratégias'
+  return l.length === 1 ? nomes[l[0]] || l[0] : l.length === 2 ? l.map(curto).join(' + ') : l.length + ' estratégias'
 }
 function escolhaEstr() {
   const el = $('estrSel'), ids = ultimoGrafico?.estrategias?.ids || []
@@ -1672,19 +1673,21 @@ function mAtualizar() {
   // a lista das estratégias por grupos, cada uma com o que fez desde o dia da linha dela no placar (19/10, ou 1/10 as que já passaram), as que mais deram primeiro
   const listaEstr = () => {
     const P = Object.fromEntries(ultimoPlacar.map(e => [e.id, e])), ops = [...$('estrSel').options].filter(o => o.value), l = estrEscolhidas()
-    const item = o => { const e = P[o.value], m = o.text.match(/^(.*?)\s*\((\d+)\)$/), nome = (m ? m[1] : o.text).replace(/^(ZIMBA FX|BOT): /, '')
-      return { nome, nomeHtml: o.value === 'edney' ? '<span class="laranja">ZIMBA FX</span>: todas juntas' : o.value === 'bot' ? '<span class="ouro">BOT</span>: todos os avisos' : null, v: o.value, on: (JUNTAS[o.value] || [o.value]).every(id => l.includes(id)), p: e?.n ? e.pips : null,
+    const item = o => { const e = P[o.value], m = o.text.match(/^(.*?)\s*\((\d+)\)$/), nome = (m ? m[1] : o.text).replace(/^(ZIMBA FX|SV3): /, '')
+      return { nome, nomeHtml: o.value === 'edney' ? '<span class="laranja">ZIMBA FX</span>: todas juntas' : null, v: o.value, on: (JUNTAS[o.value] || [o.value]).every(id => l.includes(id)), p: e?.n ? e.pips : null,
         sub: !e ? '' : e.n ? e.n + (e.n === 1 ? ' entrada' : ' entradas') + ' desde ' + diaCurtoLx(e.desde) + ' · TP1 ' + Math.round(100 * e.tp[0] / e.n) + '%' + (e.abertas ? ' · ' + e.abertas + '\u00a0a\u00a0decorrer' : '')
           : e.abertas ? e.abertas + ' a decorrer, desde ' + diaCurtoLx(e.desde) : 'sem entradas desde ' + diaCurtoLx(e.desde),
-        ordem: o.value === 'zimba' ? 2e9 : o.value === 'edney' || o.value === 'bot' ? 1e9 : e?.n ? e.pips : -1e9 } }
+        ordem: o.value === 'zimba' ? 2e9 : o.value === 'edney' ? 1e9 : e?.n ? e.pips : -1e9 } }
     // 25/10: o modelo completo dos vídeos dele à frente, depois as cinco juntas e cada uma; o Wyckoff e o Elliott também
     // são da lista dele («mete as 5»)
-    const ed = ['zimba', 'edney', ...ZIMBA_CINCO], bt = ['bot', ...JUNTAS.bot], por = l => l.sort((a, b) => b.ordem - a.ordem), B = ops.filter(o => bt.includes(o.value))
+    // 1/11 («atualiza tudo o que fizemos hoje no mobile»): sem o grupo BOT; o SV3 e a venda depois do pico num grupo «SV3»,
+    // o INCRÍVEL e o teto nas outras, como na tabela
+    const ed = ['zimba', 'edney', ...ZIMBA_CINCO], bt = ['bot-sv3', 'bot-pico'], por = l => l.sort((a, b) => b.ordem - a.ordem), B = ops.filter(o => bt.includes(o.value))
     // 31/10 («coloca esse filtro no gráfico para analisar»): as underground (servidor/underground.mjs) num grupo delas
     const ug = ['oitenta', 'ib', 'smash', 'oops', 'camarilla3', 'camarilla4', 'judas', 'flash9', 'absorcaoOntem', 'fibo705', 'volatilidade', 'squeeze'], U = ops.filter(o => ug.includes(o.value))
     // 31/10 («yyya»): a das superstições do ouro (servidor/supersticoes.mjs) num grupo dela
     const sg = ['sexta'], SU = ops.filter(o => sg.includes(o.value))
-    return [{ nome: 'Nenhuma', v: '', on: !l.length, radio: true }, ...(B.length ? [{ grupo: '<span class="ouro">BOT</span>' }, ...por(B.map(item))] : []),
+    return [{ nome: 'Nenhuma', v: '', on: !l.length, radio: true }, ...(B.length ? [{ grupo: '<span class="ouro">SV3</span>' }, ...por(B.map(item))] : []),
       { grupo: '<span class="ouro laranja">ZIMBA FX</span>' }, ...por(ops.filter(o => ed.includes(o.value)).map(item)),
       ...(U.length ? [{ grupo: 'Underground' }, ...por(U.map(item))] : []),
       ...(SU.length ? [{ grupo: 'Superstições' }, ...por(SU.map(item))] : []),
