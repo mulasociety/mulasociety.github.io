@@ -489,36 +489,45 @@ export function criarGrafico(el, { pedirHistoria = null } = {}) {
   let vistaAlvos = 'tudo', ultimosAlvos = null
   quadro.addEventListener('click', e => { const b = e.target.closest('[data-vista]'); if (!b || !ultimosAlvos) return; vistaAlvos = b.dataset.vista; quadroAlvos(...ultimosAlvos) })
   function quadroAlvos(a, ouro) {
-    const c = a?.conta
     ultimosAlvos = [a, ouro]
-    if (!c || !(c.fechados + c.abertos)) { quadro.style.display = 'none'; return }
+    // 1/11 («verifica se este card tem tudo bem»): tudo sai de uma lista só, a do servidor (a.quadro): os avisos que lhe
+    // chegaram, cada um com a hora a que saiu e a do fim, sem o corte das velas à vista. Sem ela (um servidor de antes), a das
+    // caixas do gráfico
+    const Q = a?.quadro || (a?.lista || []).map(p => ({ t: p.t ?? p.time, h: [p.hits[0] != null, p.hits[1] != null], fim: p.fim?.estado ?? null, ft: p.fim?.exato ?? p.fim?.t ?? null }))
+    if (!Q.length) { quadro.style.display = 'none'; return }
     // 22/10 («não bateu nenhum stop, porque mostra 9?», «podes tirar»): no Hoje e no Ontem a tabela é a do dia, e a conta
     // desde o início fica numa linha por baixo (os stops de lá foram a sério, não se escondem).
     // 23/10, 00:50 («ainda sem avisos hoje: aqui não faz sentido», «aqui 1» no stop de ontem): para ele o dia só acaba quando
-    // se deita. O dia do quadro vai das 06:00 às 06:00 de Lisboa, e a data aparece escrita.
+    // se deita. O dia do quadro vai das 06:00 às 06:00 de Lisboa, e a data aparece escrita. 1/11: pela hora a que o aviso saiu
+    // (no 4 h e no dia ia pela hora a que a vela começa, e a sexta 30/10 dava 0 avisos no diário em vez de 14)
     const lx = t => data(t - 6 * 3600)
-    const tudo = vistaAlvos === 'tudo', dia = lx(Date.now() / 1000 - (vistaAlvos === 'ontem' ? 86400 : 0)), H = (a.lista || []).filter(p => lx(p.time) === dia)
+    const tudo = vistaAlvos === 'tudo', dia = lx(Date.now() / 1000 - (vistaAlvos === 'ontem' ? 86400 : 0))
     // 23/10 («mete as infos reais»): no ouro são só os avisos que foram para o Telegram, cada um por si (servidor/arranque.mjs)
-    const total = c.fechados + c.abertos, nome = x => x === 1 ? (ouro ? ' aviso' : ' sinal') : (ouro ? ' avisos' : ' sinais')
-    const tps = tudo ? [c.tp1, c.tp2, c.tp3] : [0, 1, 2].map(k => H.filter(p => p.hits[k]).length), n = k => tps[k]
-    // 24/10 («faz essa estratégia»): as barras dividem pelos decididos (fechados ou já no TP1); o acerto é o dos que acabaram a
-    // ganhar sobre os fechados. 31/10: tudo no TP2, sem mexer no stop; o TP3 já não conta (o aviso fecha no TP2)
-    const st = tudo ? c.stop : H.filter(p => p.fim?.estado === 'stop').length, quantos = tudo ? total : H.length
-    const dec = tudo ? c.decididos ?? n(0) + st : H.filter(p => p.fim || p.hits[0]).length, pc = x => dec ? Math.round(100 * x / dec) : 0
-    const fech = tudo ? c.fechados : H.filter(p => p.fim).length, acerto = fech ? Math.round(100 * (fech - st) / fech) : null
-    const linha = (nome, x, cor) => '<div class="l' + (nome === 'Stop' && x ? ' st' : '') + '"><b>' + nome + '</b><span class="q">' + x + '</span><i class="barra"><span style="width:' + pc(x) + '%;background:' + cor + '"></span></i><span class="q">' + pc(x) + '%</span></div>'
-    // 23/10 («devia ter aqui 1 stop», «mete lá a vermelho no card»): os stops desde o início a vermelho, com a hora do último
-    const ultStop = (a.lista || []).filter(p => p.fim?.estado === 'stop').at(-1)
+    const nome = x => x === 1 ? (ouro ? ' aviso' : ' sinal') : (ouro ? ' avisos' : ' sinais')
+    // 31/10: tudo no TP2, sem mexer no stop; cada aviso acaba no TP2 ou no stop. 1/11: as barras dividem pelos que já fecharam
+    // (o TP1 também, dos que fecharam), para o TP2 e o stop darem 100% e o TP2 ser o acerto; os a decorrer dizem-se à parte.
+    // Antes dividiam pelos «decididos» (fechados ou já no TP1), da regra em que o TP1 punha o stop na entrada
+    const conta = L => { const F = L.filter(p => p.fim); return { n: L.length, fech: F.length, tp1: F.filter(p => p.h[0]).length, tp2: F.filter(p => p.fim === 'tp2').length, stop: F.filter(p => p.fim === 'stop').length } }
+    const T = conta(Q), k = tudo ? T : conta(Q.filter(p => lx(p.t) === dia))
+    const pc = x => k.fech ? Math.round(100 * x / k.fech) : 0, pTP2 = pc(k.tp2), pStop = k.fech && k.tp2 + k.stop === k.fech ? 100 - pTP2 : pc(k.stop)
+    const acerto = x => x.fech ? Math.round(100 * x.tp2 / x.fech) : null
+    const linha = (nome, x, p, cor) => '<div class="l' + (nome === 'Stop' && x ? ' st' : '') + '"><b>' + nome + '</b><span class="q">' + x + '</span><i class="barra"><span style="width:' + p + '%;background:' + cor + '"></span></i><span class="q">' + p + '%</span></div>'
+    // 23/10 («devia ter aqui 1 stop», «mete lá a vermelho no card»): os stops desde o início a vermelho, com a hora do último.
+    // 1/11: o último pela hora do stop (era o do último aviso que acabou no stop, que pode ter parado antes de outro)
+    const ultStop = Q.reduce((m, p) => p.fim === 'stop' && p.ft > m ? p.ft : m, 0), desde = Q.reduce((m, p) => Math.min(m, p.t), Infinity)
     const hora = t => new Date(t * 1000).toLocaleString('pt-PT', { timeZone: LX, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(', ', ' às ')
-    const stops = x => !x ? '0 stops' : '<b class="st">' + x + (x === 1 ? ' stop' : ' stops') + (ultStop ? (x === 1 ? ' a ' : ', o último a ') + hora(ultStop.fim.exato ?? ultStop.fim.t) : '') + '</b>'
+    const stops = x => !x ? '0 stops' : '<b class="st">' + x + (x === 1 ? ' stop' : ' stops') + (ultStop ? (x === 1 ? ' a ' : ', o último a ') + hora(ultStop) : '') + '</b>'
+    // os que ainda decorrem com o relógio pequeno e o número, como na tabela das Estratégias (25/10, «tenta meter isto de outra forma»)
+    const abertos = k.n - k.fech, ac = acerto(k), dec = abertos ? ' · <span class="dec" title="' + abertos + nome(abertos) + ' ainda a decorrer">'
+      + '<svg class="rel" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="4"/><path d="M5 3v2.2l1.4 1"/></svg>' + abertos + '</span>' : ''
     quadro.innerHTML = '<div class="t">' + (ouro ? 'Avisos do bot' : 'Sinais do SV3')
       + '<div class="seg">' + [['tudo', 'Tudo'], ['hoje', 'Hoje'], ['ontem', 'Ontem']].map(([v, x]) => '<button type="button" data-vista="' + v + '" aria-pressed="' + (v === vistaAlvos) + '"' + (v === vistaAlvos ? ' class="on"' : '') + '>' + x + '</button>').join('') + '</div></div>'
-      + (quantos ? linha('TP1', n(0), P.gt) + linha('TP2', n(1), P.gt) + linha('Stop', st, P.rt)
-        + '<div class="a"><span>' + quantos + nome(quantos) + ' · ' + (tudo ? 'desde ' + data(c.desde) : dia) + '</span>' + (acerto != null ? '<span>Acerto <b>' + acerto + '%</b></span>' : '') + '</div>'
+      + (k.n ? linha('TP1', k.tp1, pc(k.tp1), P.gt) + linha('TP2', k.tp2, pTP2, P.gt) + linha('Stop', k.stop, pStop, P.rt)
+        + '<div class="a"><span>' + (tudo ? '' : dia + ' · ') + k.n + nome(k.n) + dec + '</span>' + (ac != null ? '<span>Acerto <b>' + ac + '%</b></span>' : '') + '</div>'
         : '<div class="r">' + (vistaAlvos === 'ontem' ? 'Sem' + nome(2) + ' ontem (' + dia + ').' : 'Ainda sem' + nome(2) + ' hoje (' + dia + ').') + '</div>')
-      + (tudo ? (c.stop ? '<div class="r">' + stops(c.stop) + '</div>' : '')
-        : '<div class="r">Desde ' + data(c.desde) + ': ' + total + nome(total) + ', ' + stops(c.stop) + (c.acerto != null ? ', acerto ' + Math.round(100 * c.acerto) + '%' : '') + '</div>')
-      + '<div class="nota">' + (ouro ? 'Só os avisos do Telegram. Tudo no TP2, sem mexer no stop.' : 'Tudo no TP2, sem mexer no stop. Um sinal de cada vez.') + '</div>'
+      + (tudo ? (T.stop ? '<div class="r">' + stops(T.stop) + '</div>' : '')
+        : '<div class="r">Desde ' + data(desde) + ': ' + T.n + nome(T.n) + ', ' + stops(T.stop) + (acerto(T) != null ? ', acerto ' + acerto(T) + '%' : '') + '</div>')
+      + '<div class="nota">' + (ouro ? 'Só os avisos do Telegram' + (tudo ? ', desde ' + data(desde) : '') + '. Tudo no TP2, sem mexer no stop.' : (tudo ? 'Desde ' + data(desde) + '. ' : '') + 'Tudo no TP2, sem mexer no stop. Um sinal de cada vez.') + '</div>'
     quadro.style.display = 'block'
   }
   // o estocástico 5,3,3 num painel por baixo (só existe com a camada ligada), com o 80 e o 20 e o nome no canto
