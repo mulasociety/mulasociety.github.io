@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=35867d7e18'
+import { criarGrafico, numerosAviso } from './grafico.js?v=137d5e10ea'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -1136,34 +1136,68 @@ function desenharProb() {
   for (const f of porT) { let u = null; for (const g of porFim) { if (g.tf < f.t) u = g; else break } antes.set(f, u) }
   const comE = e.L.some(f => f.E != null), comV1 = e.L.some(f => f.v1 != null), redondo = f => Math.abs(f.E - Math.round(f.E / 10) * 10) <= 1
   const diaMes = f => +diaLxDe(f.t * 1000).slice(8)
+  // 1/11 («n percebo nada do que está aqui»): as mesmas contas por palavras. Em cima, quantos chegam ao TP2 em geral e, de cada
+  // grupo, numa frase, a linha que mais muda isso; nas tabelas a cor diz se a linha muda o acerto (já não diz se dava lucro).
+  // Cada linha: o nome na tabela, o que diz a frase depois de «Quando» e a conta
   const GRUPOS = [
-    ['Enquanto anda', [['Tocou no TP1', f => f.hits?.[0] != null],
-      comV1 && ['A 1.ª vela de 15 min fechou a favor', f => f.v1 === 1], comV1 && ['A 1.ª vela de 15 min fechou contra', f => f.v1 === -1],
-      ['Ainda a decorrer aos 30 min', f => f.tf - f.t > 1800], ['Ainda a decorrer à 1 h', f => f.tf - f.t > 3600], ['Ainda a decorrer às 2 h', f => f.tf - f.t > 7200],
+    ['Depois de entrar', 'Depois de entrar, nada mudou as contas até agora.', [
+      ['Já tocou no TP1', 'já tinha tocado no TP1', f => f.hits?.[0] != null],
+      comV1 && ['A 1.ª vela de 15 min fechou a ganhar', 'a 1.ª vela de 15 min fechou a ganhar', f => f.v1 === 1],
+      comV1 && ['A 1.ª vela de 15 min fechou a perder', 'a 1.ª vela de 15 min fechou a perder', f => f.v1 === -1],
+      ['Ainda aberto aos 30 min', 'ainda estava aberto aos 30 min', f => f.tf - f.t > 1800],
+      ['Ainda aberto à 1 h', 'ainda estava aberto à 1 h', f => f.tf - f.t > 3600],
+      ['Ainda aberto às 2 h', 'ainda estava aberto às 2 h', f => f.tf - f.t > 7200],
       // os stops chegaram lá todos; os TP2, se antes da vela do fim andaram 3/4 do caminho até ao stop
-      comE && ['Esteve a 1/4 do stop', f => f.E != null && (!ganhou(f) || f.pior >= 0.75)]]],
-    ['Antes de sair', [['Depois de um stop', f => antes.get(f) && !ganhou(antes.get(f))], ['Depois de um TP2', f => antes.get(f) && ganhou(antes.get(f))],
-      ['O 1.º do dia', f => numDia.get(f) === 1], ['O 2.º do dia', f => numDia.get(f) === 2], ['Do 3.º para a frente', f => numDia.get(f) >= 3],
-      ['Compra', f => f.lado !== 'venda'], ['Venda', f => f.lado === 'venda']]],
-    ['Superstições', [comE && ['Entrada a 1 $ de um número redondo', f => f.E != null && redondo(f)], comE && ['Entrada longe dos números redondos', f => f.E != null && !redondo(f)],
-      ['Em dia par', f => diaMes(f) % 2 === 0], ['Em dia ímpar', f => diaMes(f) % 2 === 1],
-      ['Com lua cheia ou nova', f => luaForte(f.t)], ['Nos outros dias', f => !luaForte(f.t)]]]
+      comE && ['Esteve quase no stop', 'esteve quase no stop', f => f.E != null && (!ganhou(f) || f.pior >= 0.75)]]],
+    ['Antes de entrar', 'Antes de entrar, nada mudou as contas até agora.', [
+      ['O aviso anterior foi stop', 'o aviso anterior tinha sido stop', f => antes.get(f) && !ganhou(antes.get(f))],
+      ['O aviso anterior foi ao TP2', 'o aviso anterior tinha ido ao TP2', f => antes.get(f) && ganhou(antes.get(f))],
+      ['O 1.º aviso do dia', 'era o 1.º aviso do dia', f => numDia.get(f) === 1], ['O 2.º aviso do dia', 'era o 2.º aviso do dia', f => numDia.get(f) === 2],
+      ['Do 3.º aviso do dia para a frente', 'já era o 3.º aviso do dia ou mais', f => numDia.get(f) >= 3],
+      ['Compras', 'era uma compra', f => f.lado !== 'venda'], ['Vendas', 'era uma venda', f => f.lado === 'venda']]],
+    ['Superstições', 'Nenhuma superstição mudou as contas até agora.', [
+      comE && ['Entrada perto de um preço redondo', 'a entrada estava perto de um preço redondo', f => f.E != null && redondo(f)],
+      comE && ['Entrada longe dos preços redondos', 'a entrada estava longe dos preços redondos', f => f.E != null && !redondo(f)],
+      ['Dia par do mês', 'era dia par', f => diaMes(f) % 2 === 0], ['Dia ímpar do mês', 'era dia ímpar', f => diaMes(f) % 2 === 1],
+      ['Lua cheia ou nova', 'havia lua cheia ou nova', f => luaForte(f.t)], ['Sem lua cheia nem nova', 'não havia lua cheia nem nova', f => !luaForte(f.t)]]]
   ]
-  const linhaP = ([rot, f]) => { const x = contas(e.L.filter(f)); return x.n ? '<tr><td>' + rot + '</td><td class="num">' + deN(x) + '</td><td class="num' + cor(x) + '">' + pct(x) + '</td></tr>' : '' }
+  // se a linha muda o acerto: contra os outros avisos desta escolha, com 10 de cada lado pelo menos, a 10 pontos ou mais do geral
+  // e com uma diferença que a sorte raramente dá (z de duas proporções acima de 2, perto de 1 vez em 20)
+  const POUCOS_LINHA = 10
+  const muda = x => {
+    const n0 = tudo.n - x.n, w0 = tudo.w - x.w, q = tudo.n ? tudo.w / tudo.n : 0
+    if (x.n < POUCOS_LINHA || n0 < POUCOS_LINHA || !q || q === 1) return { z: 0, d: 0 }
+    return { z: (x.w / x.n - w0 / n0) / Math.sqrt(q * (1 - q) * (1 / x.n + 1 / n0)), d: x.p - tudo.p }
+  }
+  const afasta = o => Math.abs(o.m.d) >= 10, certo = o => afasta(o) && Math.abs(o.m.z) >= 2
+  const corP = o => certo(o) ? (o.m.d > 0 ? ' sobe' : ' desce') : ''
+  const GR = GRUPOS.map(([g, nada, L]) => [g, nada, L.filter(Boolean).map(([rot, quando, f]) => { const x = contas(e.L.filter(f)); return { rot, quando, x, m: muda(x) } }).filter(o => o.x.n)])
+  const linhaP = o => '<tr><td>' + o.rot + '</td><td class="num">' + deN(o.x) + '</td><td class="num' + corP(o) + '">' + pct(o.x) + '</td></tr>'
   // 1/11: cada grupo na sua tabela, lado a lado quando há largura (com a aba só para ela, uma tabela ficava larga demais)
-  const corpoP = GRUPOS.map(([g, L]) => { const h = L.filter(Boolean).map(linhaP).join(''); return h ? '<table class="fat-tipos prob-pouca"><thead><tr><th scope="col">' + g + '</th><th scope="col">No TP2</th><th scope="col">Acerto</th></tr></thead><tbody>' + h + '</tbody></table>' : '' }).join('')
-  // quanto tempo demoram: a metade dos TP2 e a metade dos stops, e os stops logo nos primeiros 15 min
+  const corpoP = GR.map(([g, , L]) => L.length ? '<table class="fat-tipos prob-pouca"><thead><tr><th scope="col">' + g + '</th><th scope="col">Chegaram ao TP2</th><th scope="col">%</th></tr></thead><tbody>' + L.map(linhaP).join('') + '</tbody></table>' : '').join('')
+  // de cada grupo, a linha que mais se afasta da sorte, numa frase; se nenhuma fica a 10 pontos do geral, diz que nada mudou
+  const chegaram = w => w === 0 ? 'nenhum chegou' : w === 1 ? '1 chegou' : w + ' chegaram'
+  const frase = o => {
+    const c = corP(o).trim(), b = t => '<b' + (c ? ' class="' + c + '"' : '') + '>' + t + '</b>'
+    return 'Quando ' + o.quando + ', ' + (o.x.w ? (o.m.d < 0 ? 'só ' : '') + b(deN(o.x)) + (o.x.w === 1 ? ' chegou' : ' chegaram') : b('nenhum dos ' + o.x.n) + ' chegou')
+      + ' ao TP2 (' + pct(o.x) + ').' + (certo(o) ? '' : ' Ainda pode ser sorte.')
+  }
+  const tira = GR.filter(([, , L]) => L.length).map(([, nada, L]) => { const o = L.filter(afasta).sort((p, q) => Math.abs(q.m.z) - Math.abs(p.m.z))[0]; return o ? frase(o) : nada })
+  // quanto tempo demoram: o do meio dos TP2 e o dos stops, e os stops logo nos primeiros 15 min
   const mediana = v => { const s = [...v].sort((p, q) => p - q), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2 }
   const mins = L => { const r = Math.round(mediana(L.map(f => Math.max(0, f.tf - f.t) / 60))); return r >= 60 ? Math.floor(r / 60) + NB + 'h' + (r % 60 ? ' ' + r % 60 + NB + 'min' : '') : r + NB + 'min' }
-  const G = e.L.filter(ganhou), S = e.L.filter(f => !ganhou(f))
-  const tempo = [G.length && (G.length > 1 ? 'metade dos TP2 chegou em ' + mins(G) + ' ou menos' : 'o TP2 chegou em ' + mins(G)),
-    S.length && (S.length > 1 ? 'metade dos stops bateu em ' + mins(S) + ' ou menos' : 'o stop bateu em ' + mins(S))].filter(Boolean)
-  const txtP = e.L.length ? maiuscula(tempo.join('; ')) + '.' + (S.length ? ' ' + S.filter(f => f.tf - f.t <= 900).length + ' de ' + S.length + (S.length === 1 ? ' stop' : ' stops') + ' nos primeiros 15 min.' : '')
-    : 'Nenhum aviso desta estratégia fechou ainda.'
+  const G = e.L.filter(ganhou), S = e.L.filter(f => !ganhou(f)), cedo = S.filter(f => f.tf - f.t <= 900).length
+  const tG = G.length ? 'o TP2 ' + (G.length > 1 ? 'costuma chegar em cerca de ' : 'chegou em ') + mins(G) : ''
+  const tS = S.length ? 'o stop ' + (S.length > 1 ? (tG ? 'em cerca de ' : 'costuma bater em cerca de ') : 'bateu em ') + mins(S) : ''
+  const tC = cedo && S.length > 1 ? ' ' + cedo + ' dos ' + S.length + ' stops ' + (cedo === 1 ? 'bateu' : 'bateram') + ' logo nos primeiros 15' + NB + 'min.' : ''
+  if (tG || tS) tira.push('Quanto tempo demoram: ' + [tG, tS].filter(Boolean).join(' e ') + '.' + tC)
+  const txtP = tudo.n > 1 ? 'Dos ' + tudo.n + ' avisos que já fecharam, ' + chegaram(tudo.w) + ' ao TP2: ' + pct(tudo) + '. Cada linha em baixo faz a mesma conta, mas só com os avisos em que aconteceu aquela coisa. Se der muito diferente de ' + pct(tudo) + ', essa coisa faz diferença.'
+    : tudo.n ? 'Ainda só fechou um aviso desta estratégia.' : 'Nenhum aviso desta estratégia fechou ainda.'
   const pouca = '<section class="fat-cartao" aria-labelledby="probPoucaTit"><div class="fat-dia-cab"><div><div class="lc-rot">' + esc(e.nome) + '</div><h2 class="fat-dia-nome" id="probPoucaTit">O que pouca gente conta</h2></div></div>'
     + '<p class="fat-dia-txt">' + txtP + '</p>'
+    + (tudo.n > 1 ? '<div class="prob-tira"><h3 class="lc-rot">O que se tira daqui</h3><ul>' + tira.map(t => '<li>' + t + '</li>').join('') + '</ul></div>' : '')
     + (corpoP ? '<div class="prob-grupos">' + corpoP + '</div>'
-      + '<p class="fat-nota">Cada linha conta só os avisos dessa condição: dos que tocaram no TP1, quantos foram ao TP2. Redondo é acabado em 0, como 3 890. A 1.ª vela e o caminho até ao stop medem-se nas velas de 15 min. O dia e a lua são os de Lisboa.</p>' : '')
+      + '<p class="fat-nota">Verde: chega ao TP2 mais vezes do que os outros avisos. Rosa: menos vezes. Só se pinta quando a diferença já é grande demais para ser sorte; sem cor, é quase igual ou ainda pode ser sorte. Preço redondo é um acabado em 0, como 3' + NB + '890, a menos de 1' + NB + '$. A 1.ª vela de 15' + NB + 'min é a primeira inteira depois do aviso, e quase no stop é ter feito 3/4 do caminho até ele. O dia e a lua são os de Lisboa.</p>' : '')
     + '</section>'
 
   // ao lado, as superstições do ouro: primeiro as verdades, depois as meias e no fim os mitos
@@ -1629,7 +1663,7 @@ function mAtualizar() {
     // são da lista dele («mete as 5»)
     const ed = ['zimba', 'edney', ...ZIMBA_CINCO], bt = ['bot', ...JUNTAS.bot], por = l => l.sort((a, b) => b.ordem - a.ordem), B = ops.filter(o => bt.includes(o.value))
     // 31/10 («coloca esse filtro no gráfico para analisar»): as underground (servidor/underground.mjs) num grupo delas
-    const ug = ['oitenta', 'ib', 'smash', 'oops', 'camarilla3', 'camarilla4', 'judas', 'flash9', 'absorcaoOntem', 'fibo705'], U = ops.filter(o => ug.includes(o.value))
+    const ug = ['oitenta', 'ib', 'smash', 'oops', 'camarilla3', 'camarilla4', 'judas', 'flash9', 'absorcaoOntem', 'fibo705', 'volatilidade', 'squeeze'], U = ops.filter(o => ug.includes(o.value))
     // 31/10 («yyya»): a das superstições do ouro (servidor/supersticoes.mjs) num grupo dela
     const sg = ['sexta'], SU = ops.filter(o => sg.includes(o.value))
     return [{ nome: 'Nenhuma', v: '', on: !l.length, radio: true }, ...(B.length ? [{ grupo: '<span class="ouro">BOT</span>' }, ...por(B.map(item))] : []),

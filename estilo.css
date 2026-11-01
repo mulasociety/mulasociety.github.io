@@ -1020,6 +1020,12 @@ button.prob-c { cursor:pointer }
 /* sozinhas na aba: os três grupos do «O que pouca gente conta» lado a lado e as superstições em duas colunas */
 .prob-grupos { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:0 32px; align-items:start }
 .prob-grupos .prob-pouca thead th:first-child { font-size:11px; letter-spacing:.08em; text-transform:uppercase }
+/* 1/11 («n percebo nada do que está aqui»): no «O que pouca gente conta», o que se tira das contas, uma frase por grupo, antes das tabelas */
+.prob-tira { margin-top:12px; padding:10px 12px 12px; background:var(--painel2); border-radius:8px }
+.prob-tira h3 { font-weight:500 }
+.prob-tira ul { list-style:none; display:grid; gap:7px; margin-top:7px }
+.prob-tira li { font-size:13.5px; line-height:1.45; text-wrap:pretty }
+.prob-tira b { font-weight:600; white-space:nowrap }
 #probP-sups .prob-sups { columns:2 420px; column-gap:40px }
 #probP-sups .prob-sup { break-inside:avoid }
 @media (max-width: 1000px), (max-height: 520px) { .prob-barra { margin-left:-12px; margin-right:-12px; padding-left:12px; padding-right:12px } }
