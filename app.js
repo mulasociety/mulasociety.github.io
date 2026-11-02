@@ -1,6 +1,6 @@
 // O ecrã do Jarvis: lê a API do servidor, ouve o canal de eventos e desenha os painéis (radar, gráfico, máquina do tempo,
 // observações, agora, conta, notícias, calendário, conversa e opções). Lembra o símbolo, o tempo e as camadas.
-import { criarGrafico, numerosAviso } from './grafico.js?v=de7f79baf8'
+import { criarGrafico, numerosAviso } from './grafico.js?v=18054618c7'
 
 const CODIGO = document.querySelector('meta[name="jarvis-codigo"]').content
 const $ = id => document.getElementById(id)
@@ -858,6 +858,10 @@ let fatR = null, fatMes = null, fatDia = null
 const roFat = new ResizeObserver(es => es.forEach(e => pontas(e.target)))
 const fatSinal = v => (v >= 0.5 ? '+' : v <= -0.5 ? '-' : '') + fmt(Math.abs(v), 0) + NB + '€', fatCor = v => v >= 0.5 ? ' sobe' : v <= -0.5 ? ' desce' : ''
 const diaLxDe = ms => new Date(ms).toLocaleDateString('en-CA', { timeZone: LX })
+// 2/11 («domingo nem o mercado ta aberto resolve isso»): o dia de negociação, como no servidor (lucros.mjs, diaNegocio). O que
+// fecha no domingo à noite, quando o ouro reabre, conta na segunda (e o sábado também, se alguma vez lá cair alguma coisa)
+const diaNegDe = ms => { const d = diaLxDe(ms), w = new Date(d + 'T12:00:00Z').getUTCDay(); return Number.isNaN(w) || w % 6 ? d : new Date(Date.parse(d + 'T12:00:00Z') + (w ? 2 : 1) * 864e5).toISOString().slice(0, 10) }
+const sabOuDom = dia => new Date(dia + 'T12:00:00Z').getUTCDay() % 6 === 0
 const outroMes = (m, k) => { const [a, b] = m.split('-').map(Number); return new Date(Date.UTC(a, b - 1 + k, 1)).toISOString().slice(0, 7) }
 // como acabou cada aviso pela regra (31/10, tudo no TP2: o TP2 vale 2 vezes o stop, o stop menos uma)
 const FIM_FAT = { tp2: 'chegou ao TP2', stop: 'bateu no stop' }
@@ -873,17 +877,18 @@ function faturacao(r) {
 function desenharFat() {
   const r = fatR
   if (!r) return
-  const hoje = diaLxDe(Date.now()), ini = r.banca.inicio, desde = diaLxDe(r.desde * 1000)
+  // (hoje é o dia do relógio; negHoje o de negociação, que no domingo à noite já é a segunda)
+  const hoje = diaLxDe(Date.now()), negHoje = diaNegDe(Date.now()), ini = r.banca.inicio, desde = diaLxDe(r.desde * 1000)
   // 30/10 («não quero que tu inventes resultados»): só os avisos que foram para o Telegram; os dias antes do primeiro dizem-no
-  const primeiro = r.primeiro ? diaLxDe(r.primeiro * 1000) : null
+  const primeiro = r.primeiro ? diaNegDe(r.primeiro * 1000) : null
   const mHoje = hoje.slice(0, 7), mIni = desde.slice(0, 7), m = fatMes && fatMes >= mIni && fatMes <= mHoje ? fatMes : mHoje
   const [a, mm] = m.split('-').map(Number), n = new Date(Date.UTC(a, mm, 0)).getUTCDate(), vazios = (new Date(Date.UTC(a, mm - 1, 1)).getUTCDay() + 6) % 7
   const D = new Map(r.dias.map(d => [d.dia, d])), doMes = r.dias.filter(d => d.dia.startsWith(m)), total = doMes.reduce((s, d) => s + d.eur, 0)
-  const F = (r.fechos || []).map(f => ({ ...f, dia: diaLxDe(f.tf * 1000) })), fMes = F.filter(f => f.dia.startsWith(m))
+  const F = (r.fechos || []).map(f => ({ ...f, dia: diaNegDe(f.tf * 1000) })), fMes = F.filter(f => f.dia.startsWith(m))
   // 30/10 («acho que está a faltar infos, hoje não houve elliot»): os sinais das estratégias que foram para o Telegram, à parte e
   // em pips, como ao lado. Ficam fora da banca e do calendário (29/10) e o stop deles chega aos 51 $, que com o lote dele dava
   // mais de 1 400 € num só sinal. Os pips pela mesma regra dos avisos, já sem o spread
-  const FO = (r.fechosOutros || []).map(f => ({ ...f, dia: diaLxDe(f.tf * 1000), pips: R_FAT[f.fim] * f.R - (r.custo || 0) }))
+  const FO = (r.fechosOutros || []).map(f => ({ ...f, dia: diaNegDe(f.tf * 1000), pips: R_FAT[f.fim] * f.R - (r.custo || 0) }))
   const nomeE = Object.fromEntries((r.placar || []).map(e => [e.id, e.nome.replace(/^ZIMBA FX: /, '')]))
   const pips = x => { const d = Math.round(Math.abs(x) * 10) / 10; return (x < 0 && d ? '-' : d ? '+' : '') + fmt(d, d % 1 ? 1 : 0) }
   const emPausa = dia => { const t = Date.parse(dia + 'T12:00:00Z') / 1000; return (r.pausas || []).some(([p0, p1]) => t >= p0 && t < p1) }
@@ -893,7 +898,7 @@ function desenharFat() {
   // no quadrado, com os sinais da lista do dia (✓ com lucro, ✗ no stop), para caber numa linha; por extenso ao passar o rato
   const sinais = x => [x.lucro && '<span class="sobe">✓' + NB + x.lucro + '</span>', x.stops && '<span class="desce">✗' + NB + x.stops + '</span>'].filter(Boolean).join(' · ')
   // o dia escolhido: o que ele carregou, se for deste mês; senão hoje, se já fechou algum aviso, ou o último dia com avisos fechados
-  const dia = fatDia?.startsWith(m) ? fatDia : hoje.startsWith(m) && D.has(hoje) ? hoje : doMes.at(-1)?.dia ?? (m === mHoje ? hoje : m + '-01')
+  const dia = fatDia?.startsWith(m) ? fatDia : negHoje.startsWith(m) && D.has(negHoje) ? negHoje : doMes.at(-1)?.dia ?? (m === mHoje ? hoje : m + '-01')
 
   // as contas do mês
   const bons = fMes.filter(f => R_FAT[f.fim] > 0).length, stops = fMes.filter(f => f.fim === 'stop').length
@@ -911,13 +916,14 @@ function desenharFat() {
 
   // o calendário: um quadrado por dia (os de fora do Jarvis sem botão) e, no fim de cada semana, o total dela
   const celula = d => {
-    const x = D.get(d), eHoje = d === hoje, dentro = d >= desde && d <= hoje, cls = 'fat-d' + (eHoje ? ' hoje' : '') + (x ? ganha(x.eur) : '')
+    // (no domingo à noite a segunda abre-se logo que algum aviso fechar nela)
+    const x = D.get(d), eHoje = d === hoje, dentro = d >= desde && (d <= hoje || d === negHoje && (D.has(d) || FO.some(f => f.dia === d))), cls = 'fat-d' + (eHoje ? ' hoje' : '') + (x ? ganha(x.eur) : '')
     const topo = '<span class="fat-n">' + +d.slice(8) + (eHoje ? ' · hoje' : '') + '</span>'
     // (o € num span: no telemóvel sai, para o número caber no quadrado)
     const corpo = x ? '<b class="fat-v num">' + fatSinal(x.eur).replace(NB + '€', '<span class="fat-eur">' + NB + '€</span>') + '</b><span class="fat-s num">' + fmt(ini, 0) + ' → ' + fmt(ini + x.eur, 0) + NB + '€</span><span class="fat-s fat-sinais num">' + sinais(x) + '</span>'
         // abaixo de zero pelo caminho (a banca de 500 € não aguentava); só se desceu mais do que o fim, que já está à vista
         + (x.minimo < 0 && x.minimo < ini + x.eur - 0.5 ? '<span class="fat-s desce">pelo caminho: ' + fmt(x.minimo, 0) + NB + '€</span>' : '')
-      : dentro && emPausa(d) ? '<span class="fat-s">avisos em pausa</span>' : eHoje ? '<span class="fat-s">ainda nenhum fechou</span>'
+      : dentro && emPausa(d) ? '<span class="fat-s">avisos em pausa</span>' : eHoje && !sabOuDom(d) ? '<span class="fat-s">ainda nenhum fechou</span>'
       : primeiro && dentro && d < primeiro ? '<span class="fat-s">sem avisos</span>' : ''
     return dentro ? '<button type="button" class="' + cls + (d === dia ? ' sel' : '') + '" data-dia="' + d + '" aria-pressed="' + (d === dia) + '"' + (x ? ' title="' + esc(contas(x).join(', ')) + '"' : '') + '>' + topo + corpo + '</button>'
       : '<div class="' + cls + ' fora">' + topo + corpo + '</div>'
@@ -944,16 +950,17 @@ function desenharFat() {
       + '<span class="fat-a-s">saiu ' + as(f.t * 1000) + ' · stop de ' + fmt(f.R, 2) + NB + '$' + (tps.length ? ' · ' + tps.join(' · ') : '') + (aberto ? '' : ' · ' + FIM_FAT[f.fim] + ' ' + as(f.tf * 1000)) + '</span></li>'
   }
   // as estratégias do dia, por baixo: as que fecharam nele e, no fim, as que saíram nele e ainda não fecharam
-  const LO = [...FO.filter(f => f.dia === dia), ...(r.abertosOutros || []).filter(a => diaLxDe(a.t * 1000) === dia)], somaO = LO.reduce((s, f) => s + (f.fim ? f.pips : 0), 0)
+  const LO = [...FO.filter(f => f.dia === dia), ...(r.abertosOutros || []).filter(a => diaNegDe(a.t * 1000) === dia)], somaO = LO.reduce((s, f) => s + (f.fim ? f.pips : 0), 0)
   const doDiaO = LO.length ? '<div class="fat-fora"><div class="fat-dia-cab"><h3 class="lc-rot">Outras estratégias</h3>' + (LO.some(f => f.fim) ? '<b class="fat-a-v num' + fatCor(somaO) + '">' + pips(somaO) + NB + 'pips</b>' : '') + '</div>'
     + '<ul class="fat-avisos">' + LO.map(f => aviso(f, true)).join('') + '</ul></div>' : ''
   const semNada = emPausa(dia) ? 'Os teus avisos estavam em pausa: o que saiu não te chegou e não conta.'
     : primeiro && dia < primeiro ? 'Ainda não tinha ido nenhum aviso para o Telegram. O primeiro foi a ' + diaDe(r.primeiro * 1000) + ' às ' + hhmm(r.primeiro * 1000) + '.'
+    : sabOuDom(dia) ? 'Ao fim de semana o mercado está fechado. O ouro reabre ao domingo à noite e o que fecha a partir daí conta na segunda.'
     : dia === hoje ? 'Ainda nenhum aviso fechou hoje.' : 'Nenhum aviso fechou neste dia.'
   // 31/10 («isto aqui tem que ser scroll senão fica super grande»): o nome do dia, o total e a banca ficam parados e os avisos
   // deslizam por dentro do cartão (estilo.css, .fat-desliza), como no cartão da ordem
   const desliza = (x ? '<ul class="fat-avisos">' + L.map(f => aviso(f)).join('') + '</ul>' : '')
-    + (dia === hoje && r.abertos ? '<p class="fat-dia-txt">Ainda a decorrer: ' + r.abertos + (r.abertos > 1 ? ' avisos, que só contam quando fecharem.' : ' aviso, que só conta quando fechar.') + '</p>' : '') + doDiaO
+    + (dia === negHoje && r.abertos ? '<p class="fat-dia-txt">Ainda a decorrer: ' + r.abertos + (r.abertos > 1 ? ' avisos, que só contam quando fecharem.' : ' aviso, que só conta quando fechar.') + '</p>' : '') + doDiaO
   const doDia = '<section class="fat-cartao" aria-labelledby="fatDiaTit"><div class="fat-dia-cab"><div><div class="lc-rot">Dia escolhido</div><h2 class="fat-dia-nome" id="fatDiaTit">' + nomeDia(dia) + '</h2></div>'
       + (x ? '<b class="fat-dia-v num' + fatCor(x.eur) + '">' + fatSinal(x.eur) + '</b>' : '') + '</div>'
     + '<p class="fat-dia-txt">' + (x ? 'Começou com ' + fmt(ini, 0) + ' € e acabou com ' + fmt(ini + x.eur, 0) + ' €' + (tBaixo && baixo < ini + x.eur - 0.5 ? '; o mais baixo foi ' + fmt(baixo, 0) + ' €, às ' + hhmm(tBaixo * 1000) : '') + '.' : semNada) + '</p>'
@@ -991,7 +998,7 @@ function desenharFat() {
   // 31/10 («podes retirar isto daqui»): sem a coluna das estratégias em pips ao lado (desde 19/10); essa tabela fica por baixo
   // do gráfico, e o calendário e o dia escolhido ficam com a largura toda
   $('fatCorpo').innerHTML = resumo + cal
-    + '<p class="fat-nota">Cada dia começa com ' + fmt(ini, 0) + ' € de banca: só os avisos do BOT que foram mesmo para o Telegram (SV3, pico, INCRÍVEL e teto), com ' + fmt(r.lote, 2) + ' lotes e já sem o spread (' + fmt(r.custo, 2) + NB + '$ em cada aviso). Cada aviso conta no dia em que fechou. As outras estratégias que foram para o Telegram contam em pips, sem mexer na banca. Carrega num dia para ver os avisos dele aqui em baixo.</p>'
+    + '<p class="fat-nota">Cada dia começa com ' + fmt(ini, 0) + ' € de banca: só os avisos do BOT que foram mesmo para o Telegram (SV3, pico, INCRÍVEL e teto), com ' + fmt(r.lote, 2) + ' lotes e já sem o spread (' + fmt(r.custo, 2) + NB + '$ em cada aviso). Cada aviso conta no dia em que fechou (o domingo à noite, quando o ouro reabre, conta na segunda). As outras estratégias que foram para o Telegram contam em pips, sem mexer na banca. Carrega num dia para ver os avisos dele aqui em baixo.</p>'
     + (r.conferencia?.erros || []).map(e => '<p class="fat-nota desce">⚠ ' + esc(e) + '</p>').join('')
     + '<div class="fat-baixo">' + doDia + porEstr + '</div>'
   const novo = $('fatCorpo').querySelector('.fat-desliza')
