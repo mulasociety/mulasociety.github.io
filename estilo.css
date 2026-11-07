@@ -893,6 +893,8 @@ html[data-graf] .cardGraf .timer b { color:var(--texto) }
 .fat-seta svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round }
 .fat-seta:disabled { color:#3a3f45; cursor:default }
 @media (hover: hover) { .fat-seta:not(:disabled):hover { color:var(--texto); background:#1b1f23 } }
+/* 7/11: o seletor das contas (todas as estratégias ou só o BOT), com o desenho das abas das probabilidades */
+.fat-modo { margin-bottom:14px }
 .fat-resumo { display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:10px; margin-bottom:16px }
 .fat-k { min-width:0; padding:10px 14px 11px; background:#141719; border:1px solid var(--borda); border-radius:10px }
 .fat-k b { display:block; margin-top:3px; font-size:20px; font-weight:700; line-height:1.2; color:var(--texto) } .fat-k b.sobe { color:var(--salva) } .fat-k b.desce { color:var(--rosa) }
